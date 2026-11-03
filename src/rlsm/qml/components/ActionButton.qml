@@ -34,7 +34,7 @@ Button {
     }
     background: Rectangle {
         radius: 9
-        color: control.kind === "primary" ? (control.down ? "#6ec8b3" : control.hovered ? "#b1f1e0" : App.Theme.accent)
+        color: control.kind === "primary" ? (control.down ? App.Theme.accentPressed : control.hovered ? App.Theme.accentHover : App.Theme.accent)
              : control.down ? App.Theme.selected : control.hovered ? App.Theme.hover
              : control.kind === "quiet" ? "transparent" : "#c923303e"
         border.width: control.activeFocus || control.kind === "secondary" ? 1 : 0

@@ -9,7 +9,7 @@ Rectangle {
     implicitWidth: row.implicitWidth + 20
     implicitHeight: 28
     radius: 14
-    color: ready ? "#253e3b" : "#403a30"
+    color: ready ? App.Theme.accentSoft : "#403a30"
     RowLayout {
         id: row
         anchors.centerIn: parent

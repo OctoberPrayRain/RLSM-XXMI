@@ -30,13 +30,14 @@ ApplicationWindow {
     property string lastShownMessage: ""
     property bool initialized: false
     Component.onCompleted: { lastShownMessage = appController.lastMessage; initialized = true }
+    Binding { target: App.Theme; property: "accent"; value: appearance.accentColor }
 
     background: Rectangle {
         gradient: Gradient {
             orientation: Gradient.Horizontal
-            GradientStop { position: 0; color: "#142b35" }
-            GradientStop { position: 0.5; color: "#101b2a" }
-            GradientStop { position: 1; color: "#1d2134" }
+            GradientStop { position: 0; color: App.Theme.gradientStart }
+            GradientStop { position: 0.5; color: App.Theme.gradientMiddle }
+            GradientStop { position: 1; color: App.Theme.gradientEnd }
         }
         Image {
             anchors.fill: parent
@@ -104,7 +105,7 @@ ApplicationWindow {
             Label { text: nav.text; color: nav.checked ? App.Theme.text : App.Theme.muted; font.pixelSize: 14; font.weight: nav.checked ? Font.DemiBold : Font.Normal; Layout.fillWidth: true }
             Rectangle { visible: nav.checked; width: 4; height: 16; radius: 2; color: App.Theme.accent }
         }
-        background: Rectangle { radius: 9; color: nav.checked ? "#cc253c41" : nav.hovered ? "#aa243440" : "transparent" }
+        background: Rectangle { radius: 9; color: nav.checked ? App.Theme.accentSoft : nav.hovered ? "#aa243440" : "transparent" }
         onClicked: window.currentPage = pageIndex
     }
 
@@ -134,8 +135,7 @@ ApplicationWindow {
                         Label { text: "Rainy Skin Manager"; color: App.Theme.subtle; font.pixelSize: 10 }
                     }
                 }
-                Label { Layout.topMargin: 34; Layout.leftMargin: 14; Layout.bottomMargin: 5; text: qsTr("工作空间"); color: App.Theme.subtle; font.pixelSize: 11; font.letterSpacing: 1 }
-                NavButton { pageIndex: 0; symbol: "grid"; text: qsTr("Mod 资料库") }
+                NavButton { Layout.topMargin: 34; pageIndex: 0; symbol: "grid"; text: qsTr("Mod 资料库") }
                 NavButton { pageIndex: 1; symbol: "game"; text: qsTr("游戏环境") }
                 Item { Layout.fillHeight: true }
                 NavButton { pageIndex: 2; symbol: "image"; text: qsTr("外观") }
@@ -145,7 +145,7 @@ ApplicationWindow {
                     Layout.bottomMargin: 10
                     spacing: 8
                     Rectangle { width: 6; height: 6; radius: 3; color: appController.environmentReady ? App.Theme.accent : App.Theme.warning }
-                    Label { text: appController.importerName + (appController.environmentReady ? qsTr(" 已经连接") : qsTr(" 待配置")); color: App.Theme.muted; font.pixelSize: 12 }
+                    Label { text: appController.importerName + (appController.environmentReady ? qsTr(" · 已连接") : qsTr(" · 待配置")); color: App.Theme.muted; font.pixelSize: 12 }
                 }
             }
         }
@@ -179,8 +179,6 @@ ApplicationWindow {
                         kind: "quiet"
                         enabled: appController.hyprlandAvailable
                         onClicked: appController.reloadGame()
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("向当前游戏发送刷新按键")
                     }
                     C.ActionButton {
                         text: qsTr("启动游戏")
@@ -243,10 +241,9 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 C.ActionButton { symbol: "close"; kind: "quiet"; implicitWidth: 34; implicitHeight: 34; onClicked: importDialog.close() }
             }
-            Label { Layout.fillWidth: true; text: qsTr("选择压缩包或已经解压的目录，导入到 %1。").arg(appController.gameName); color: App.Theme.muted; wrapMode: Text.WordWrap; font.pixelSize: 14 }
-            C.ActionButton { Layout.fillWidth: true; text: qsTr("选择压缩包 · ZIP / 7z / RAR"); symbol: "upload"; kind: "primary"; implicitHeight: 52; onClicked: archiveDialog.open() }
-            C.ActionButton { Layout.fillWidth: true; text: qsTr("选择 Mod 目录"); symbol: "folder"; implicitHeight: 52; onClicked: modFolderDialog.open() }
-            Label { Layout.fillWidth: true; text: qsTr("自动识别分类 · 同名保留两份 · 导入后默认停用"); color: App.Theme.subtle; font.pixelSize: 12; wrapMode: Text.WordWrap }
+            C.ActionButton { Layout.fillWidth: true; text: qsTr("压缩包（ZIP / 7z / RAR）"); symbol: "upload"; kind: "primary"; implicitHeight: 52; onClicked: archiveDialog.open() }
+            C.ActionButton { Layout.fillWidth: true; text: qsTr("文件夹"); symbol: "folder"; implicitHeight: 52; onClicked: modFolderDialog.open() }
+            Label { Layout.fillWidth: true; text: qsTr("导入后保持停用；同名 Mod 不会被覆盖。"); color: App.Theme.subtle; font.pixelSize: 12; wrapMode: Text.WordWrap }
         }
     }
 
@@ -259,12 +256,12 @@ ApplicationWindow {
         background: C.Panel { color: "#172330" }
         contentItem: ColumnLayout {
             spacing: 20
-            Label { text: qsTr("整理未分类 Mod"); color: App.Theme.text; font.pixelSize: 22; font.weight: Font.DemiBold }
-            Label { Layout.fillWidth: true; text: qsTr("根据元数据和文件名称，把根目录或“未分类”中的 Mod 移动到对应分类。已有分类保持原样，无法识别的 Mod 保留原位置。"); color: App.Theme.muted; wrapMode: Text.WordWrap; lineHeight: 1.4 }
+            Label { text: qsTr("整理分类"); color: App.Theme.text; font.pixelSize: 22; font.weight: Font.DemiBold }
+            Label { Layout.fillWidth: true; text: qsTr("只整理根目录和“未分类”中的 Mod。无法识别的内容保留原位。"); color: App.Theme.muted; wrapMode: Text.WordWrap; lineHeight: 1.4 }
             RowLayout {
                 Item { Layout.fillWidth: true }
                 C.ActionButton { text: qsTr("取消"); onClicked: classifyDialog.close() }
-                C.ActionButton { text: qsTr("开始整理"); kind: "primary"; onClicked: { classifyDialog.close(); appController.autoCategorize() } }
+                C.ActionButton { text: qsTr("整理"); kind: "primary"; onClicked: { classifyDialog.close(); appController.autoCategorize() } }
             }
         }
     }
@@ -277,7 +274,7 @@ ApplicationWindow {
         width: Math.min(680, window.width - 270)
         padding: 16
         closePolicy: Popup.CloseOnEscape
-        background: C.Panel { color: "#f2223442"; border.color: "#526a7a" }
+        background: C.Panel { color: "#f2223442"; border.color: App.Theme.accentBorder }
         contentItem: RowLayout {
             spacing: 12
             C.Icon { name: "info"; color: App.Theme.accent }

@@ -16,7 +16,6 @@ ScrollView {
         width: page.availableWidth
         spacing: 20
         Label { text: qsTr("游戏环境"); color: App.Theme.text; font.pixelSize: 29; font.weight: Font.DemiBold }
-        Label { text: qsTr("为 %1 连接 Mod 目录和游戏启动项。").arg(appController.gameName); color: App.Theme.muted; font.pixelSize: 14 }
 
         C.Panel {
             Layout.fillWidth: true
@@ -30,9 +29,9 @@ ScrollView {
                     C.Icon { name: "folder"; color: App.Theme.accent }
                     Label { text: qsTr("XXMI 模块"); color: App.Theme.text; font.pixelSize: 18; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
-                    C.StatusPill { text: appController.environmentReady ? qsTr("已经连接") : qsTr("需要配置"); ready: appController.environmentReady }
+                    C.StatusPill { text: appController.environmentReady ? qsTr("已连接") : qsTr("待配置"); ready: appController.environmentReady }
                 }
-                Label { text: qsTr("选择 XXMI 根目录或 %1 目录").arg(appController.importerName); color: App.Theme.muted; font.pixelSize: 13 }
+                Label { text: qsTr("模块目录"); color: App.Theme.muted; font.pixelSize: 13 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -73,7 +72,7 @@ ScrollView {
                     C.Icon { name: "game"; color: App.Theme.accent }
                     Label { text: qsTr("Lutris 与 Wine"); color: App.Theme.text; font.pixelSize: 18; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
-                    C.ActionButton { text: qsTr("重新读取"); symbol: "refresh"; kind: "quiet"; implicitHeight: 32; onClicked: appController.refreshLutris() }
+                    C.ActionButton { text: qsTr("刷新"); symbol: "refresh"; kind: "quiet"; implicitHeight: 32; onClicked: appController.refreshLutris() }
                 }
                 Label { text: qsTr("游戏启动项"); color: App.Theme.muted; font.pixelSize: 13 }
                 C.SelectField {
@@ -85,10 +84,10 @@ ScrollView {
                 Label { text: qsTr("Wine 前缀"); color: App.Theme.muted; font.pixelSize: 13 }
                 RowLayout {
                     Layout.fillWidth: true
-                    C.Field { Layout.fillWidth: true; text: appController.winePrefix; readOnly: true; placeholderText: qsTr("由启动项提供，也可以手动选择") }
+                    C.Field { Layout.fillWidth: true; text: appController.winePrefix; readOnly: true; placeholderText: qsTr("未选择 Wine 前缀") }
                     C.ActionButton { text: qsTr("选择前缀"); onClicked: page.prefixBrowseRequested() }
                 }
-                C.ActionButton { visible: appController.hasWinePrefixOverride; text: qsTr("恢复 Lutris 中的前缀"); kind: "quiet"; onClicked: appController.clearWinePrefixOverride() }
+                C.ActionButton { visible: appController.hasWinePrefixOverride; text: qsTr("恢复 Lutris 前缀"); kind: "quiet"; onClicked: appController.clearWinePrefixOverride() }
                 Label { Layout.fillWidth: true; text: appController.wineDetails; color: App.Theme.muted; font.pixelSize: 13; wrapMode: Text.WrapAnywhere; lineHeight: 1.4 }
             }
         }
@@ -105,7 +104,7 @@ ScrollView {
                     C.Icon { name: "keyboard"; color: App.Theme.accent }
                     Label { text: qsTr("游戏内刷新"); color: App.Theme.text; font.pixelSize: 18; font.weight: Font.DemiBold }
                     Item { Layout.fillWidth: true }
-                    C.StatusPill { text: appController.hyprlandAvailable ? qsTr("Hyprland 可用") : qsTr("Hyprland 不可用"); ready: appController.hyprlandAvailable }
+                    C.StatusPill { text: appController.hyprlandAvailable ? qsTr("可用") : qsTr("不可用"); ready: appController.hyprlandAvailable }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -117,7 +116,6 @@ ScrollView {
                     Item { Layout.fillWidth: true }
                     C.ActionButton { text: qsTr("发送 F10"); enabled: appController.hyprlandAvailable; onClicked: appController.reloadGame() }
                 }
-                Label { Layout.fillWidth: true; text: qsTr("游戏运行时，将刷新按键发送给对应游戏窗口。游戏关闭时仍可管理 Mod。"); color: App.Theme.muted; font.pixelSize: 13; wrapMode: Text.WordWrap }
             }
         }
         Item { Layout.preferredHeight: 12 }

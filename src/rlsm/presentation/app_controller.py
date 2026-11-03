@@ -195,22 +195,25 @@ class AppController(QObject):
     def environmentTitle(self) -> str:
         importer = self._current_importer
         if self._inspection is None:
-            return f"{importer.importer_name} 尚未安装或尚未选择"
+            return f"{importer.importer_name} 未选择"
         if self._inspection.ready:
-            return f"{importer.importer_name} 可以使用"
-        return f"{importer.importer_name} 环境需要处理"
+            return f"{importer.importer_name} 已连接"
+        return f"{importer.importer_name} 需要配置"
 
     @Property(str, notify=stateChanged)
     def environmentDetails(self) -> str:
         importer = self._current_importer
         if self._inspection is None:
-            return f"请选择 XXMI 根目录或者 {importer.importer_name} 目录。"
+            return "未选择模块目录"
         if self._inspection.ready:
-            arguments = " ".join(importer.d3d11_arguments) or "无"
-            return (
-                f"Mods 目录：{self._inspection.mods_path}\n"
-                f"注入方式：{importer.injection_mode} · DirectX 参数：{arguments}"
-            )
+            details = [
+                f"Mods：{self._inspection.mods_path}",
+                f"注入：{importer.injection_mode}",
+            ]
+            arguments = " ".join(importer.d3d11_arguments)
+            if arguments:
+                details.append(f"DirectX 参数：{arguments}")
+            return "\n".join(details)
         return "\n".join(self._inspection.issues)
 
     @Property("QStringList", notify=stateChanged)
@@ -247,35 +250,30 @@ class AppController(QObject):
     @Property(str, notify=stateChanged)
     def wineTitle(self) -> str:
         if self._selected_profile is None:
-            return "尚未绑定 Lutris 启动项"
+            return "未绑定 Lutris 启动项"
         if self._wine_is_ready():
-            return "Wine 环境可以使用"
-        return "Wine 环境需要补充配置"
+            return "Wine 已连接"
+        return "Wine 需要配置"
 
     @Property(str, notify=stateChanged)
     def wineDetails(self) -> str:
         profile = self._selected_profile
         if profile is None:
             issues = "\n".join(self._lutris_snapshot.issues)
-            return issues or "请选择这个游戏对应的 Lutris 启动项。"
+            return issues or "未选择 Lutris 启动项"
 
         prefix = self._effective_wine_prefix()
         runner_name = profile.wine.runner_name or "未指定"
-        prefix_text = str(prefix) if prefix is not None else "未指定"
         architecture = profile.wine.architecture or "未指定"
-        details = [
-            f"启动项：{profile.name}（ID {profile.profile_id}）",
-            f"运行器：{runner_name} · 架构：{architecture}",
-            f"Wine 前缀：{prefix_text}",
-        ]
+        details = [f"运行器：{runner_name} · 架构：{architecture}"]
         if profile.runner != "wine":
-            details.append(f"该启动项的 Lutris 运行器类型为 {profile.runner or '未知'}")
+            details.append(f"Lutris 运行器类型：{profile.runner or '未知'}")
         elif prefix is None:
-            details.append("需要选择该游戏使用的 Wine 前缀")
+            details.append("未选择 Wine 前缀")
         elif not prefix.is_dir():
-            details.append("Wine 前缀当前不可访问")
+            details.append("Wine 前缀无法访问")
         if profile.wine.runner_name is None:
-            details.append("Lutris 没有提供 Wine 运行器版本")
+            details.append("Lutris 未提供 Wine 运行器版本")
         return "\n".join(details)
 
     @Property(str, notify=stateChanged)
@@ -417,7 +415,7 @@ class AppController(QObject):
     @Slot()
     def clearWinePrefixOverride(self) -> None:
         self._settings.remove(self._prefix_setting(self._current_importer))
-        self._set_message("已恢复使用 Lutris 启动项中的 Wine 前缀")
+        self._set_message("已恢复 Lutris 的 Wine 前缀")
 
     @Slot()
     def refreshLutris(self) -> None:
@@ -430,7 +428,7 @@ class AppController(QObject):
             previous_profile_id or (saved_profile_id if saved_profile_id != "__none__" else None),
             allow_auto=saved_profile_id != "__none__",
         )
-        self._set_message("已重新读取 Lutris 启动项")
+        self._set_message("已刷新 Lutris 启动项")
 
     @Slot()
     def launchSelectedProfile(self) -> None:
@@ -442,14 +440,14 @@ class AppController(QObject):
         except OSError as error:
             self._set_message(f"无法启动 Lutris：{error}")
             return
-        self._set_message(f"已请求 Lutris 启动 {self._selected_profile.name}")
+        self._set_message(f"已向 Lutris 发送启动请求：{self._selected_profile.name}")
 
     @Slot(bool)
     def setReloadAfterToggle(self, enabled: bool) -> None:
         self._reload_after_toggle = enabled
         self._settings.setValue("reloadAfterToggle", enabled)
-        state = "启用" if enabled else "停用"
-        self._set_message(f"已经{state} Mod 切换后的自动 F10")
+        state = "开启" if enabled else "关闭"
+        self._set_message(f"自动 F10 已{state}")
 
     @Slot()
     def reloadGame(self) -> None:
@@ -477,7 +475,7 @@ class AppController(QObject):
             tuple(entry.path for entry in entries),
         )
         self._scan_library()
-        message = f"自动分类完成：移动 {result.moved} 个，保留 {result.unchanged} 个"
+        message = f"已整理：移动 {result.moved} 个，保留 {result.unchanged} 个"
         if result.warnings:
             message += "\n" + "\n".join(result.warnings)
         self._set_message(message)
@@ -511,7 +509,7 @@ class AppController(QObject):
 
         self._scan_library()
         action = "启用" if not target.is_enabled else "停用"
-        message = f"已{action} {target.display_name}，完成 {len(result.completed_steps)} 项目录修改"
+        message = f"已{action} {target.display_name}"
         if result.changed and self._reload_after_toggle:
             reload_result = self._hyprland.reload_game(self._current_importer.game)
             message += f"\n{reload_result.message}"
@@ -527,8 +525,7 @@ class AppController(QObject):
             self._set_message(str(error))
             return
         self._scan_library()
-        categories = "、".join(sorted({item.category for item in result.imported}))
-        message = f"已经导入 {len(result.imported)} 个 Mod，分类：{categories}；新 Mod 默认停用"
+        message = f"已导入 {len(result.imported)} 个 Mod，保持停用"
         if result.warnings:
             message += "\n" + "\n".join(result.warnings)
         self._set_message(message)

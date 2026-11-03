@@ -21,7 +21,6 @@ Item {
             ColumnLayout {
                 spacing: 6
                 Label { text: qsTr("Mod 资料库"); color: App.Theme.text; font.pixelSize: 29; font.weight: Font.DemiBold }
-                Label { text: qsTr("管理收藏，为下一次出发挑选外观。"); color: App.Theme.muted; font.pixelSize: 14 }
             }
             Item { Layout.fillWidth: true }
             C.ActionButton {
@@ -49,9 +48,9 @@ Item {
                 spacing: 26
                 Repeater {
                     model: [
-                        { label: qsTr("全部 Mod"), value: appController.modCount, tint: App.Theme.text },
-                        { label: qsTr("已经启用"), value: appController.enabledCount, tint: App.Theme.accent },
-                        { label: qsTr("已经停用"), value: appController.modCount - appController.enabledCount, tint: App.Theme.muted }
+                        { label: qsTr("全部"), value: appController.modCount, tint: App.Theme.text },
+                        { label: qsTr("启用"), value: appController.enabledCount, tint: App.Theme.accent },
+                        { label: qsTr("停用"), value: appController.modCount - appController.enabledCount, tint: App.Theme.muted }
                     ]
                     delegate: RowLayout {
                         required property var modelData
@@ -92,7 +91,7 @@ Item {
             }
             C.SelectField {
                 Layout.preferredWidth: 130
-                model: [qsTr("全部状态"), qsTr("已经启用"), qsTr("已经停用")]
+                model: [qsTr("全部状态"), qsTr("启用"), qsTr("停用")]
                 currentIndex: appController.stateFilter
                 onActivated: appController.setStateFilter(currentIndex)
             }
@@ -100,7 +99,7 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Label { text: qsTr("显示 %1 个 Mod").arg(appController.visibleModCount); color: App.Theme.muted; font.pixelSize: 12 }
+            Label { text: qsTr("%1 个 Mod").arg(appController.visibleModCount); color: App.Theme.muted; font.pixelSize: 12 }
             C.ActionButton {
                 visible: appController.searchQuery.length > 0 || appController.categoryFilter !== "全部分类" || appController.stateFilter !== 0
                 text: qsTr("清除筛选")
@@ -110,11 +109,11 @@ Item {
             }
             Item { Layout.fillWidth: true }
             C.Toggle {
-                text: qsTr("同一分类只启用一个")
+                text: qsTr("分类内单选")
                 checked: page.singleSelection
                 onToggled: page.singleSelection = checked
                 ToolTip.visible: hovered
-                ToolTip.text: qsTr("启用一个 Mod 时，停用同一分类中已经启用的其他 Mod。")
+                ToolTip.text: qsTr("启用一个 Mod 时，停用同一分类的其他 Mod。")
             }
         }
 
@@ -146,8 +145,8 @@ Item {
                     C.Panel {
                         anchors.fill: parent
                         anchors.margins: 6
-                        color: hover.hovered ? "#ed1b2a38" : App.Theme.surface
-                        border.color: card.modEnabled ? "#4c8b7d" : App.Theme.border
+                        color: hover.hovered ? App.Theme.hover : App.Theme.surface
+                        border.color: card.modEnabled ? App.Theme.accentBorder : App.Theme.border
                         HoverHandler { id: hover }
                         ColumnLayout {
                             anchors.fill: parent
@@ -216,14 +215,14 @@ Item {
                     width: 82
                     height: 82
                     radius: 24
-                    color: "#263f43"
+                    color: App.Theme.accentSoft
                     C.Icon { anchors.centerIn: parent; name: appController.modCount > 0 ? "search" : "folder"; width: 34; height: 34; color: App.Theme.accent }
                 }
                 Label {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    text: !appController.environmentReady ? qsTr("连接游戏，开始管理 Mod")
-                        : appController.modCount > 0 ? qsTr("没有找到匹配的 Mod") : qsTr("你的资料库，从第一个 Mod 开始")
+                    text: !appController.environmentReady ? qsTr("未连接游戏环境")
+                        : appController.modCount > 0 ? qsTr("没有匹配的 Mod") : qsTr("还没有 Mod")
                     color: App.Theme.text
                     font.pixelSize: 21
                     font.weight: Font.DemiBold
@@ -232,9 +231,9 @@ Item {
                 Label {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    text: !appController.environmentReady ? qsTr("选择游戏对应的 XXMI 模块，已有 Mod 会自动出现在这里。")
-                        : appController.modCount > 0 ? qsTr("尝试其他关键词，或清除当前筛选条件。")
-                        : qsTr("支持目录、ZIP、7z 和 RAR，导入后自动分类。")
+                    text: !appController.environmentReady ? qsTr("请选择 XXMI 模块目录。")
+                        : appController.modCount > 0 ? qsTr("请修改搜索或筛选条件。")
+                        : qsTr("支持文件夹、ZIP、7z 和 RAR。")
                     color: App.Theme.muted
                     font.pixelSize: 14
                     wrapMode: Text.WordWrap
@@ -242,7 +241,7 @@ Item {
                 }
                 C.ActionButton {
                     Layout.alignment: Qt.AlignHCenter
-                    text: !appController.environmentReady ? qsTr("配置游戏环境") : appController.modCount > 0 ? qsTr("清除筛选") : qsTr("导入第一个 Mod")
+                    text: !appController.environmentReady ? qsTr("配置游戏") : appController.modCount > 0 ? qsTr("清除筛选") : qsTr("导入 Mod")
                     symbol: appController.modCount > 0 ? "refresh" : "plus"
                     kind: "primary"
                     onClicked: {

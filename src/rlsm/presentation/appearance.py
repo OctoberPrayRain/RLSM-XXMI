@@ -5,10 +5,12 @@ import uuid
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Property, QSettings, QStandardPaths, QUrl, Signal, Slot
-from PySide6.QtGui import QImageReader
+from PySide6.QtGui import QColor, QImageReader
 
 
 class AppearanceSettings(QObject):
+    DEFAULT_ACCENT = "#91e4ce"
+
     changed = Signal()
     errorOccurred = Signal(str)
 
@@ -19,6 +21,13 @@ class AppearanceSettings(QObject):
         self._background = str(self._settings.value("appearance/background", "") or "")
         self._dim = min(0.9, max(0.0, float(self._settings.value("appearance/dim", 0.55))))
         self._fit = int(self._settings.value("appearance/fit", 0))
+        self._accent = self._valid_accent(
+            str(self._settings.value("appearance/accent", self.DEFAULT_ACCENT) or self.DEFAULT_ACCENT)
+        )
+
+    @Property(str, notify=changed)
+    def accentColor(self) -> str:
+        return self._accent
 
     @Property(str, notify=changed)
     def backgroundUrl(self) -> str:
@@ -36,6 +45,26 @@ class AppearanceSettings(QObject):
     @Property(int, notify=changed)
     def backgroundFit(self) -> int:
         return self._fit
+
+    @Slot(str)
+    def setAccentColor(self, value: str) -> None:
+        color = QColor(value)
+        if not color.isValid():
+            return
+        accent = color.name(QColor.NameFormat.HexRgb)
+        if accent == self._accent:
+            return
+        self._accent = accent
+        self._settings.setValue("appearance/accent", accent)
+        self.changed.emit()
+
+    @Slot()
+    def resetAccentColor(self) -> None:
+        if self._accent == self.DEFAULT_ACCENT:
+            return
+        self._accent = self.DEFAULT_ACCENT
+        self._settings.remove("appearance/accent")
+        self.changed.emit()
 
     @Slot(QUrl)
     def setBackground(self, url: QUrl) -> None:
@@ -87,3 +116,8 @@ class AppearanceSettings(QObject):
                 path.unlink(missing_ok=True)
             except OSError:
                 pass
+
+    @classmethod
+    def _valid_accent(cls, value: str) -> str:
+        color = QColor(value)
+        return color.name(QColor.NameFormat.HexRgb) if color.isValid() else cls.DEFAULT_ACCENT
