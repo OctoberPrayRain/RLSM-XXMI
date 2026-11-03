@@ -20,6 +20,7 @@
     "src/rlsm/presentation/__init__.py",
     "src/rlsm/presentation/app_controller.py",
     "src/rlsm/presentation/appearance.py",
+    "src/rlsm/presentation/library_folders.py",
     "src/rlsm/qml/Main.qml",
     "src/rlsm/qml/Theme.qml",
     "src/rlsm/qml/components/ActionButton.qml",

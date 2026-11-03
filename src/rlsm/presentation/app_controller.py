@@ -32,6 +32,11 @@ from rlsm.infrastructure.xxmi import (
     discover_module_path,
     inspect_environment,
 )
+from rlsm.presentation.library_folders import LibraryFolderError, LibraryFolders
+
+
+ALL_FOLDERS = "__all__"
+UNSORTED_FOLDER = "__unsorted__"
 
 
 class ModRoles(IntEnum):
@@ -41,6 +46,7 @@ class ModRoles(IntEnum):
     MOD_ENABLED = Qt.ItemDataRole.UserRole + 4
     PREVIEW_URL = Qt.ItemDataRole.UserRole + 5
     FULL_PATH = Qt.ItemDataRole.UserRole + 6
+    LIBRARY_FOLDER = Qt.ItemDataRole.UserRole + 7
 
 
 class ModListModel(QAbstractListModel):
@@ -51,6 +57,8 @@ class ModListModel(QAbstractListModel):
         self._query = ""
         self._group = ""
         self._state = 0
+        self._library_folder = ALL_FOLDERS
+        self._folder_by_path: dict[Path, str] = {}
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._visible_entries)
@@ -69,6 +77,7 @@ class ModListModel(QAbstractListModel):
                 QUrl.fromLocalFile(str(entry.preview_path)).toString() if entry.preview_path is not None else ""
             ),
             ModRoles.FULL_PATH: str(entry.path),
+            ModRoles.LIBRARY_FOLDER: self._folder_by_path.get(entry.path, ""),
         }
         return values.get(role)
 
@@ -80,14 +89,27 @@ class ModListModel(QAbstractListModel):
             ModRoles.MOD_ENABLED: QByteArray(b"modEnabled"),
             ModRoles.PREVIEW_URL: QByteArray(b"previewUrl"),
             ModRoles.FULL_PATH: QByteArray(b"fullPath"),
+            ModRoles.LIBRARY_FOLDER: QByteArray(b"libraryFolder"),
         }
 
-    def replace(self, entries: tuple[ModEntry, ...]) -> None:
+    def replace(
+        self,
+        entries: tuple[ModEntry, ...],
+        folder_by_path: dict[Path, str] | None = None,
+    ) -> None:
         self._entries = entries
+        self._folder_by_path = folder_by_path or {}
         self._apply_filter()
 
-    def set_filter(self, query: str, group: str, state: int) -> None:
-        self._query, self._group, self._state = query.casefold().strip(), group, state
+    def set_filter(self, query: str, group: str, state: int, library_folder: str) -> None:
+        self._query = query.casefold().strip()
+        self._group = group
+        self._state = state
+        self._library_folder = library_folder
+        self._apply_filter()
+
+    def set_folders(self, folder_by_path: dict[Path, str]) -> None:
+        self._folder_by_path = folder_by_path
         self._apply_filter()
 
     def _apply_filter(self) -> None:
@@ -97,8 +119,17 @@ class ModListModel(QAbstractListModel):
             if (not self._query or self._query in f"{entry.display_name} {entry.group_path}".casefold())
             and (not self._group or self.group_name(entry) == self._group)
             and (self._state == 0 or entry.is_enabled == (self._state == 1))
+            and self._matches_library_folder(entry)
         )
         self.endResetModel()
+
+    def _matches_library_folder(self, entry: ModEntry) -> bool:
+        if self._library_folder == ALL_FOLDERS:
+            return True
+        folder = self._folder_by_path.get(entry.path, "")
+        if self._library_folder == UNSORTED_FOLDER:
+            return not folder
+        return folder == self._library_folder
 
     def entry(self, row: int) -> ModEntry | None:
         if not 0 <= row < len(self._visible_entries):
@@ -120,6 +151,7 @@ class AppController(QObject):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._settings = QSettings()
+        self._folders = LibraryFolders(self._settings)
         self._library = ModLibrary()
         self._mod_files = ModFileManager()
         self._toggle_engine = ModToggleEngine()
@@ -136,6 +168,7 @@ class AppController(QObject):
         self._search_query = ""
         self._category_filter = ""
         self._state_filter = 0
+        self._folder_filter = ALL_FOLDERS
         self._reload_after_toggle = bool(
             self._settings.value("reloadAfterToggle", True, type=bool)
         )
@@ -319,6 +352,46 @@ class AppController(QObject):
             key=str.casefold,
         )
 
+    @Property("QVariantList", notify=stateChanged)
+    def libraryFolderItems(self) -> list[dict[str, object]]:
+        entries = self._mods_model.entries
+        counts = {name: 0 for name in self._folders.names}
+        unsorted_count = 0
+        for entry in entries:
+            folder = self._folders.folder_for(entry)
+            if folder:
+                counts[folder] = counts.get(folder, 0) + 1
+            else:
+                unsorted_count += 1
+        return [
+            {"key": ALL_FOLDERS, "name": "全部 Mod", "count": len(entries), "icon": "grid"},
+            {"key": UNSORTED_FOLDER, "name": "未整理", "count": unsorted_count, "icon": "folder"},
+            *(
+                {"key": name, "name": name, "count": counts.get(name, 0), "icon": "folder"}
+                for name in self._folders.names
+            ),
+        ]
+
+    @Property("QStringList", notify=stateChanged)
+    def moveFolderOptions(self) -> list[str]:
+        return ["未整理", *self._folders.names]
+
+    @Property(str, notify=stateChanged)
+    def currentLibraryFolderKey(self) -> str:
+        return self._folder_filter
+
+    @Property(str, notify=stateChanged)
+    def currentLibraryFolderName(self) -> str:
+        if self._folder_filter == ALL_FOLDERS:
+            return "全部 Mod"
+        if self._folder_filter == UNSORTED_FOLDER:
+            return "未整理"
+        return self._folder_filter
+
+    @Property(bool, notify=stateChanged)
+    def canManageCurrentLibraryFolder(self) -> bool:
+        return self._folder_filter not in {ALL_FOLDERS, UNSORTED_FOLDER}
+
     @Property(str, notify=stateChanged)
     def searchQuery(self) -> str:
         return self._search_query
@@ -360,8 +433,70 @@ class AppController(QObject):
         self._search_query, self._category_filter, self._state_filter = "", "", 0
         self._apply_library_filter()
 
+    @Slot(str)
+    def setLibraryFolder(self, value: str) -> None:
+        valid_keys = {ALL_FOLDERS, UNSORTED_FOLDER, *self._folders.names}
+        if value not in valid_keys:
+            return
+        self._folder_filter = value
+        self._apply_library_filter()
+
+    @Slot(str)
+    def createLibraryFolder(self, value: str) -> None:
+        try:
+            name = self._folders.create(value)
+        except LibraryFolderError as error:
+            self._set_message(str(error))
+            return
+        self._set_message(f"已创建文件夹：{name}")
+
+    @Slot(str, str)
+    def renameLibraryFolder(self, current_name: str, value: str) -> None:
+        try:
+            name = self._folders.rename(current_name, value)
+        except LibraryFolderError as error:
+            self._set_message(str(error))
+            return
+        if self._folder_filter == current_name:
+            self._folder_filter = name
+        self._sync_library_folders()
+        self._set_message(f"已重命名文件夹：{name}")
+
+    @Slot(str)
+    def deleteLibraryFolder(self, value: str) -> None:
+        try:
+            self._folders.delete(value)
+        except LibraryFolderError as error:
+            self._set_message(str(error))
+            return
+        if self._folder_filter == value:
+            self._folder_filter = UNSORTED_FOLDER
+        self._sync_library_folders()
+        self._set_message(f"已删除文件夹：{value}")
+
+    @Slot(int, str)
+    def moveModToLibraryFolder(self, row: int, value: str) -> None:
+        target = self._mods_model.entry(row)
+        if target is None:
+            self._set_message("找不到需要整理的 Mod")
+            return
+        folder_name = "" if value == "未整理" else value
+        try:
+            folder = self._folders.assign(target, folder_name)
+        except LibraryFolderError as error:
+            self._set_message(str(error))
+            return
+        self._sync_library_folders()
+        destination = folder or "未整理"
+        self._set_message(f"已将 {target.display_name} 移到 {destination}")
+
     def _apply_library_filter(self) -> None:
-        self._mods_model.set_filter(self._search_query, self._category_filter, self._state_filter)
+        self._mods_model.set_filter(
+            self._search_query,
+            self._category_filter,
+            self._state_filter,
+            self._folder_filter,
+        )
         self.stateChanged.emit()
 
     @Slot(int)
@@ -369,6 +504,7 @@ class AppController(QObject):
         if not 0 <= index < len(self._importers) or index == self._current_game_index:
             return
         self._current_game_index = index
+        self._folder_filter = ALL_FOLDERS
         self.clearFilters()
         self._settings.setValue("currentImporter", self._current_importer.key)
         self._load_current_importer()
@@ -545,11 +681,13 @@ class AppController(QObject):
         if self._inspection is None or self._inspection.mods_path is None:
             self._set_message("未连接 Mods 目录")
             return
+        folder_key = self._folders.key_for(target)
         try:
             self._mod_files.move_to_trash(target, self._inspection.mods_path)
         except ModFileError as error:
             self._set_message(str(error))
             return
+        self._folders.remove_key(folder_key)
         self._scan_library()
         message = f"已将 {target.display_name} 移入回收站"
         if target.is_enabled and self._reload_after_toggle:
@@ -573,9 +711,11 @@ class AppController(QObject):
         self._set_message(message)
 
     def _load_current_importer(self) -> None:
+        self._folders.load(self._current_importer.key)
+        self._folder_filter = ALL_FOLDERS
         self._inspection = None
         self._snapshot = None
-        self._mods_model.replace(())
+        self._mods_model.replace((), {})
         module_path = self._module_paths.get(self._current_importer.key)
         if module_path is not None:
             self._inspect(module_path)
@@ -594,7 +734,7 @@ class AppController(QObject):
         except OSError as error:
             self._inspection = None
             self._snapshot = None
-            self._mods_model.replace(())
+            self._mods_model.replace((), {})
             self._set_message(f"读取 XXMI 环境失败：{error}")
             return
 
@@ -608,7 +748,7 @@ class AppController(QObject):
             self._last_message = f"已连接 {importer.importer_name}"
         else:
             self._snapshot = None
-            self._mods_model.replace(())
+            self._mods_model.replace((), {})
             self._last_message = "环境检查未通过"
         self.stateChanged.emit()
 
@@ -619,8 +759,27 @@ class AppController(QObject):
         groups = {self._mods_model.group_name(entry) for entry in self._snapshot.entries}
         if self._category_filter not in groups:
             self._category_filter = ""
-        self._mods_model.set_filter(self._search_query, self._category_filter, self._state_filter)
-        self._mods_model.replace(self._snapshot.entries)
+        if self._folder_filter not in {ALL_FOLDERS, UNSORTED_FOLDER, *self._folders.names}:
+            self._folder_filter = ALL_FOLDERS
+        folder_map = self._folders.folder_map(self._snapshot.entries)
+        self._mods_model.set_filter(
+            self._search_query,
+            self._category_filter,
+            self._state_filter,
+            self._folder_filter,
+        )
+        self._mods_model.replace(self._snapshot.entries, folder_map)
+        self.stateChanged.emit()
+
+    def _sync_library_folders(self) -> None:
+        entries = self._mods_model.entries
+        self._mods_model.set_folders(self._folders.folder_map(entries))
+        self._mods_model.set_filter(
+            self._search_query,
+            self._category_filter,
+            self._state_filter,
+            self._folder_filter,
+        )
         self.stateChanged.emit()
 
     def _refresh_lutris_snapshot(self) -> None:

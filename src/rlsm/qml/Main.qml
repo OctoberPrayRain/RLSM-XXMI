@@ -32,6 +32,10 @@ ApplicationWindow {
     property int pendingPreviewRow: -1
     property int pendingDeleteRow: -1
     property string pendingDeleteName: ""
+    property int pendingMoveRow: -1
+    property string pendingMoveName: ""
+    property string pendingMoveFolder: ""
+    property string pendingLibraryFolderName: ""
     Component.onCompleted: { lastShownMessage = appController.lastMessage; initialized = true }
     Binding { target: App.Theme; property: "accent"; value: appearance.accentColor }
     Binding { target: App.Theme; property: "backdropSource"; value: backdrop }
@@ -230,6 +234,31 @@ ApplicationWindow {
                         window.pendingDeleteName = displayName
                         deleteDialog.open()
                     }
+                    onCreateFolderRequested: {
+                        createFolderField.text = ""
+                        createFolderDialog.open()
+                    }
+                    onRenameFolderRequested: function(folderName) {
+                        window.pendingLibraryFolderName = folderName
+                        renameFolderField.text = folderName
+                        renameFolderDialog.open()
+                    }
+                    onDeleteFolderRequested: function(folderName) {
+                        window.pendingLibraryFolderName = folderName
+                        deleteFolderDialog.open()
+                    }
+                    onMoveRequested: function(row, displayName, folderName) {
+                        window.pendingMoveRow = row
+                        window.pendingMoveName = displayName
+                        window.pendingMoveFolder = folderName
+                        moveFolderSelect.currentIndex = Math.max(
+                            0,
+                            appController.moveFolderOptions.indexOf(
+                                folderName.length > 0 ? folderName : qsTr("未整理")
+                            )
+                        )
+                        moveFolderDialog.open()
+                    }
                 }
                 Pages.EnvironmentPage {
                     objectName: "environmentPage"
@@ -288,6 +317,179 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 C.ActionButton { text: qsTr("取消"); onClicked: classifyDialog.close() }
                 C.ActionButton { text: qsTr("整理"); kind: "primary"; onClicked: { classifyDialog.close(); appController.autoCategorize() } }
+            }
+        }
+    }
+
+    Dialog {
+        id: createFolderDialog
+        anchors.centerIn: parent
+        width: 460
+        modal: true
+        padding: 26
+        background: C.Panel { glassColor: "#b6172330" }
+        onOpened: createFolderField.forceActiveFocus()
+        contentItem: ColumnLayout {
+            spacing: 18
+            Label {
+                text: qsTr("新建文件夹")
+                color: App.Theme.text
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
+            C.Field {
+                id: createFolderField
+                Layout.fillWidth: true
+                placeholderText: qsTr("例如：简、雅、艾莲")
+                onAccepted: {
+                    appController.createLibraryFolder(text)
+                    createFolderDialog.close()
+                }
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                C.ActionButton { text: qsTr("取消"); onClicked: createFolderDialog.close() }
+                C.ActionButton {
+                    text: qsTr("创建")
+                    kind: "primary"
+                    onClicked: {
+                        appController.createLibraryFolder(createFolderField.text)
+                        createFolderDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: renameFolderDialog
+        anchors.centerIn: parent
+        width: 460
+        modal: true
+        padding: 26
+        background: C.Panel { glassColor: "#b6172330" }
+        onOpened: {
+            renameFolderField.forceActiveFocus()
+            renameFolderField.selectAll()
+        }
+        onClosed: window.pendingLibraryFolderName = ""
+        contentItem: ColumnLayout {
+            spacing: 18
+            Label {
+                text: qsTr("重命名文件夹")
+                color: App.Theme.text
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
+            C.Field {
+                id: renameFolderField
+                Layout.fillWidth: true
+                onAccepted: {
+                    appController.renameLibraryFolder(window.pendingLibraryFolderName, text)
+                    renameFolderDialog.close()
+                }
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                C.ActionButton { text: qsTr("取消"); onClicked: renameFolderDialog.close() }
+                C.ActionButton {
+                    text: qsTr("保存")
+                    kind: "primary"
+                    onClicked: {
+                        appController.renameLibraryFolder(
+                            window.pendingLibraryFolderName,
+                            renameFolderField.text
+                        )
+                        renameFolderDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: deleteFolderDialog
+        anchors.centerIn: parent
+        width: 480
+        modal: true
+        padding: 26
+        background: C.Panel { glassColor: "#b6172330"; borderColor: App.Theme.danger }
+        onClosed: window.pendingLibraryFolderName = ""
+        contentItem: ColumnLayout {
+            spacing: 18
+            Label {
+                text: qsTr("删除文件夹")
+                color: App.Theme.text
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("删除“%1”？其中的 Mod 会回到“未整理”。")
+                    .arg(window.pendingLibraryFolderName)
+                color: App.Theme.muted
+                wrapMode: Text.WordWrap
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                C.ActionButton { text: qsTr("取消"); onClicked: deleteFolderDialog.close() }
+                C.ActionButton {
+                    text: qsTr("删除文件夹")
+                    kind: "danger"
+                    onClicked: {
+                        const name = window.pendingLibraryFolderName
+                        deleteFolderDialog.close()
+                        appController.deleteLibraryFolder(name)
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: moveFolderDialog
+        anchors.centerIn: parent
+        width: 480
+        modal: true
+        padding: 26
+        background: C.Panel { glassColor: "#b6172330" }
+        onClosed: {
+            window.pendingMoveRow = -1
+            window.pendingMoveName = ""
+            window.pendingMoveFolder = ""
+        }
+        contentItem: ColumnLayout {
+            spacing: 18
+            Label {
+                text: qsTr("移动 Mod")
+                color: App.Theme.text
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
+            Label {
+                Layout.fillWidth: true
+                text: window.pendingMoveName
+                color: App.Theme.muted
+                elide: Text.ElideRight
+            }
+            C.SelectField {
+                id: moveFolderSelect
+                Layout.fillWidth: true
+                model: appController.moveFolderOptions
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                C.ActionButton { text: qsTr("取消"); onClicked: moveFolderDialog.close() }
+                C.ActionButton {
+                    text: qsTr("移动")
+                    kind: "primary"
+                    onClicked: {
+                        const row = window.pendingMoveRow
+                        const folder = moveFolderSelect.currentText
+                        moveFolderDialog.close()
+                        appController.moveModToLibraryFolder(row, folder)
+                    }
+                }
             }
         }
     }

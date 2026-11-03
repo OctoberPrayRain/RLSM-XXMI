@@ -11,7 +11,13 @@ Item {
     signal classificationRequested()
     signal previewRequested(int row)
     signal deleteRequested(int row, string displayName)
+    signal createFolderRequested()
+    signal renameFolderRequested(string folderName)
+    signal deleteFolderRequested(string folderName)
+    signal moveRequested(int row, string displayName, string folderName)
     property bool singleSelection: true
+    readonly property bool filtersActive: appController.searchQuery.length > 0 || appController.stateFilter !== 0
+    readonly property bool currentFolderIsAll: appController.currentLibraryFolderKey === "__all__"
 
     ColumnLayout {
         anchors.fill: parent
@@ -25,6 +31,12 @@ Item {
                 Label { text: qsTr("Mod 资料库"); color: App.Theme.text; font.pixelSize: 29; font.weight: Font.DemiBold }
             }
             Item { Layout.fillWidth: true }
+            C.ActionButton {
+                text: qsTr("新建文件夹")
+                symbol: "folder"
+                enabled: appController.environmentReady
+                onClicked: page.createFolderRequested()
+            }
             C.ActionButton {
                 text: qsTr("整理分类")
                 symbol: "sort"
@@ -79,17 +91,11 @@ Item {
                 id: search
                 objectName: "modSearch"
                 Layout.fillWidth: true
-                placeholderText: qsTr("搜索 Mod 名称或分类…")
+                placeholderText: qsTr("搜索 Mod 名称…")
                 text: appController.searchQuery
                 leftPadding: 40
                 onTextEdited: appController.setSearchQuery(text)
                 C.Icon { name: "search"; color: App.Theme.subtle; width: 17; height: 17; x: 14; anchors.verticalCenter: parent.verticalCenter }
-            }
-            C.SelectField {
-                Layout.preferredWidth: 170
-                model: appController.categoryOptions
-                currentIndex: Math.max(0, appController.categoryOptions.indexOf(appController.categoryFilter))
-                onActivated: appController.setCategoryFilter(currentText)
             }
             C.SelectField {
                 Layout.preferredWidth: 130
@@ -101,9 +107,13 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Label { text: qsTr("%1 个 Mod").arg(appController.visibleModCount); color: App.Theme.muted; font.pixelSize: 12 }
+            Label {
+                text: qsTr("%1 · %2 个 Mod").arg(appController.currentLibraryFolderName).arg(appController.visibleModCount)
+                color: App.Theme.muted
+                font.pixelSize: 12
+            }
             C.ActionButton {
-                visible: appController.searchQuery.length > 0 || appController.categoryFilter !== "全部分类" || appController.stateFilter !== 0
+                visible: appController.searchQuery.length > 0 || appController.stateFilter !== 0
                 text: qsTr("清除筛选")
                 kind: "quiet"
                 implicitHeight: 30
@@ -119,11 +129,110 @@ Item {
             }
         }
 
-        Item {
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            spacing: 14
 
-            GridView {
+            C.Panel {
+                Layout.preferredWidth: 196
+                Layout.fillHeight: true
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    spacing: 8
+
+                    Label {
+                        Layout.leftMargin: 8
+                        Layout.topMargin: 4
+                        text: qsTr("文件夹")
+                        color: App.Theme.text
+                        font.pixelSize: 15
+                        font.weight: Font.DemiBold
+                    }
+
+                    ListView {
+                        id: folderList
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: 4
+                        model: appController.libraryFolderItems
+                        ScrollBar.vertical: ScrollBar { }
+
+                        delegate: Button {
+                            id: folderButton
+                            required property var modelData
+                            width: folderList.width
+                            height: 42
+                            checkable: true
+                            checked: appController.currentLibraryFolderKey === modelData.key
+                            hoverEnabled: true
+                            leftPadding: 10
+                            rightPadding: 10
+                            contentItem: RowLayout {
+                                spacing: 9
+                                C.Icon {
+                                    name: folderButton.modelData.icon
+                                    color: folderButton.checked ? App.Theme.accent : App.Theme.muted
+                                    width: 17
+                                    height: 17
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: folderButton.modelData.name
+                                    color: folderButton.checked ? App.Theme.text : App.Theme.muted
+                                    elide: Text.ElideRight
+                                    font.pixelSize: 13
+                                }
+                                Label {
+                                    text: folderButton.modelData.count
+                                    color: folderButton.checked ? App.Theme.accent : App.Theme.subtle
+                                    font.pixelSize: 12
+                                }
+                            }
+                            background: Rectangle {
+                                radius: 8
+                                color: folderButton.checked ? App.Theme.accentSoft
+                                    : folderButton.hovered ? App.Theme.hover : "transparent"
+                            }
+                            onClicked: appController.setLibraryFolder(modelData.key)
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: appController.canManageCurrentLibraryFolder
+                        spacing: 6
+                        C.ActionButton {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: qsTr("重命名")
+                            implicitHeight: 32
+                            leftPadding: 8
+                            rightPadding: 8
+                            onClicked: page.renameFolderRequested(appController.currentLibraryFolderName)
+                        }
+                        C.ActionButton {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: qsTr("删除")
+                            kind: "danger"
+                            implicitHeight: 32
+                            leftPadding: 8
+                            rightPadding: 8
+                            onClicked: page.deleteFolderRequested(appController.currentLibraryFolderName)
+                        }
+                    }
+                }
+            }
+
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                GridView {
                 id: grid
                 anchors.fill: parent
                 anchors.margins: -6
@@ -140,6 +249,7 @@ Item {
                     required property bool modEnabled
                     required property string previewUrl
                     required property string fullPath
+                    required property string libraryFolder
                     width: grid.cellWidth
                     height: grid.cellHeight
 
@@ -184,15 +294,34 @@ Item {
                                     text: qsTr("已启用")
                                 }
                             }
-                            Label {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: card.displayName
-                                color: App.Theme.text
-                                font.pixelSize: 16
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                                ToolTip.visible: hover.hovered
-                                ToolTip.text: card.fullPath
+                                spacing: 6
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: card.displayName
+                                    color: App.Theme.text
+                                    font.pixelSize: 16
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                    ToolTip.visible: hover.hovered
+                                    ToolTip.text: card.fullPath
+                                }
+                                C.ActionButton {
+                                    symbol: "folder"
+                                    kind: "quiet"
+                                    implicitWidth: 32
+                                    implicitHeight: 30
+                                    leftPadding: 7
+                                    rightPadding: 7
+                                    onClicked: page.moveRequested(
+                                        card.index,
+                                        card.displayName,
+                                        card.libraryFolder
+                                    )
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("移动到文件夹")
+                                }
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -235,7 +364,7 @@ Item {
                 }
             }
 
-            ColumnLayout {
+                ColumnLayout {
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 50, 460)
                 visible: appController.visibleModCount === 0
@@ -252,7 +381,10 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: !appController.environmentReady ? qsTr("未连接游戏环境")
-                        : appController.modCount > 0 ? qsTr("没有匹配的 Mod") : qsTr("还没有 Mod")
+                        : appController.modCount === 0 ? qsTr("还没有 Mod")
+                        : page.filtersActive ? qsTr("没有匹配的 Mod")
+                        : !page.currentFolderIsAll ? qsTr("这里还没有 Mod")
+                        : qsTr("没有匹配的 Mod")
                     color: App.Theme.text
                     font.pixelSize: 21
                     font.weight: Font.DemiBold
@@ -262,8 +394,10 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: !appController.environmentReady ? qsTr("请选择 XXMI 模块目录。")
-                        : appController.modCount > 0 ? qsTr("请修改搜索或筛选条件。")
-                        : qsTr("支持文件夹、ZIP、7z 和 RAR。")
+                        : appController.modCount === 0 ? qsTr("支持文件夹、ZIP、7z 和 RAR。")
+                        : page.filtersActive ? qsTr("请修改搜索或状态筛选。")
+                        : !page.currentFolderIsAll ? qsTr("从全部 Mod 中把卡片移到这里。")
+                        : qsTr("没有可显示的 Mod。")
                     color: App.Theme.muted
                     font.pixelSize: 14
                     wrapMode: Text.WordWrap
@@ -271,15 +405,26 @@ Item {
                 }
                 C.ActionButton {
                     Layout.alignment: Qt.AlignHCenter
-                    text: !appController.environmentReady ? qsTr("配置游戏") : appController.modCount > 0 ? qsTr("清除筛选") : qsTr("导入 Mod")
-                    symbol: appController.modCount > 0 ? "refresh" : "plus"
+                    text: !appController.environmentReady ? qsTr("配置游戏")
+                        : appController.modCount === 0 ? qsTr("导入 Mod")
+                        : page.filtersActive ? qsTr("清除筛选")
+                        : !page.currentFolderIsAll ? qsTr("查看全部 Mod")
+                        : qsTr("刷新")
+                    symbol: !appController.environmentReady ? "settings"
+                        : appController.modCount === 0 ? "plus"
+                        : page.filtersActive ? "refresh"
+                        : !page.currentFolderIsAll ? "grid"
+                        : "refresh"
                     kind: "primary"
                     onClicked: {
                         if (!appController.environmentReady) page.environmentRequested()
-                        else if (appController.modCount > 0) appController.clearFilters()
-                        else page.importRequested()
+                        else if (appController.modCount === 0) page.importRequested()
+                        else if (page.filtersActive) appController.clearFilters()
+                        else if (!page.currentFolderIsAll) appController.setLibraryFolder("__all__")
+                        else appController.refreshLibrary()
                     }
                 }
+            }
             }
         }
     }

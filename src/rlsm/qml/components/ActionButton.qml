@@ -16,7 +16,7 @@ Button {
     font.pixelSize: 14
     activeFocusOnTab: true
     contentItem: RowLayout {
-        spacing: 8
+        spacing: control.symbol.length > 0 && control.text.length > 0 ? 8 : 0
         Icon {
             visible: control.symbol.length > 0
             name: control.symbol
@@ -26,6 +26,7 @@ Button {
                  : control.kind === "danger" ? App.Theme.dangerInk : App.Theme.text
         }
         Text {
+            visible: control.text.length > 0
             text: control.text
             font: control.font
             color: control.kind === "primary" ? App.Theme.accentInk
