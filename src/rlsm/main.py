@@ -9,6 +9,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from rlsm.presentation import AppController
+from rlsm.presentation.appearance import AppearanceSettings
 
 
 def main() -> int:
@@ -21,7 +22,9 @@ def main() -> int:
 
     engine = QQmlApplicationEngine()
     controller = AppController(engine)
+    appearance = AppearanceSettings(engine)
     engine.rootContext().setContextProperty("appController", controller)
+    engine.rootContext().setContextProperty("appearance", appearance)
 
     qml_path = Path(__file__).resolve().parent / "qml" / "Main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_path)))

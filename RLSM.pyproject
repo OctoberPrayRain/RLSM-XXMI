@@ -18,7 +18,19 @@
     "src/rlsm/main.py",
     "src/rlsm/presentation/__init__.py",
     "src/rlsm/presentation/app_controller.py",
+    "src/rlsm/presentation/appearance.py",
     "src/rlsm/qml/Main.qml",
+    "src/rlsm/qml/Theme.qml",
+    "src/rlsm/qml/components/ActionButton.qml",
+    "src/rlsm/qml/components/Field.qml",
+    "src/rlsm/qml/components/Icon.qml",
+    "src/rlsm/qml/components/Panel.qml",
+    "src/rlsm/qml/components/SelectField.qml",
+    "src/rlsm/qml/components/StatusPill.qml",
+    "src/rlsm/qml/components/Toggle.qml",
+    "src/rlsm/qml/pages/AppearancePage.qml",
+    "src/rlsm/qml/pages/EnvironmentPage.qml",
+    "src/rlsm/qml/pages/LibraryPage.qml",
     "src/rlsm/qml/qmldir"
   ]
 }

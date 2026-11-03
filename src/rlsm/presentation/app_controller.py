@@ -45,15 +45,19 @@ class ModListModel(QAbstractListModel):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._entries: tuple[ModEntry, ...] = ()
+        self._visible_entries: tuple[ModEntry, ...] = ()
+        self._query = ""
+        self._group = ""
+        self._state = 0
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
-        return 0 if parent.isValid() else len(self._entries)
+        return 0 if parent.isValid() else len(self._visible_entries)
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole) -> object:
-        if not index.isValid() or not 0 <= index.row() < len(self._entries):
+        if not index.isValid() or not 0 <= index.row() < len(self._visible_entries):
             return None
 
-        entry = self._entries[index.row()]
+        entry = self._visible_entries[index.row()]
         values: dict[int, object] = {
             ModRoles.DISPLAY_NAME: entry.display_name,
             ModRoles.DIRECTORY_NAME: entry.directory_name,
@@ -77,14 +81,31 @@ class ModListModel(QAbstractListModel):
         }
 
     def replace(self, entries: tuple[ModEntry, ...]) -> None:
-        self.beginResetModel()
         self._entries = entries
+        self._apply_filter()
+
+    def set_filter(self, query: str, group: str, state: int) -> None:
+        self._query, self._group, self._state = query.casefold().strip(), group, state
+        self._apply_filter()
+
+    def _apply_filter(self) -> None:
+        self.beginResetModel()
+        self._visible_entries = tuple(
+            entry for entry in self._entries
+            if (not self._query or self._query in f"{entry.display_name} {entry.group_path}".casefold())
+            and (not self._group or self.group_name(entry) == self._group)
+            and (self._state == 0 or entry.is_enabled == (self._state == 1))
+        )
         self.endResetModel()
 
     def entry(self, row: int) -> ModEntry | None:
-        if not 0 <= row < len(self._entries):
+        if not 0 <= row < len(self._visible_entries):
             return None
-        return self._entries[row]
+        return self._visible_entries[row]
+
+    @staticmethod
+    def group_name(entry: ModEntry) -> str:
+        return "未分类" if entry.group_path == Path(".") else entry.group_path.as_posix()
 
     @property
     def entries(self) -> tuple[ModEntry, ...]:
@@ -109,6 +130,9 @@ class AppController(QObject):
         self._lutris_snapshot = LutrisSnapshot((), ())
         self._selected_profile: LaunchProfile | None = None
         self._last_message = ""
+        self._search_query = ""
+        self._category_filter = ""
+        self._state_filter = 0
         self._reload_after_toggle = bool(
             self._settings.value("reloadAfterToggle", True, type=bool)
         )
@@ -287,11 +311,64 @@ class AppController(QObject):
     def lastMessage(self) -> str:
         return self._last_message
 
+    @Property("QStringList", notify=stateChanged)
+    def categoryOptions(self) -> list[str]:
+        return ["全部分类"] + sorted(
+            {self._mods_model.group_name(entry) for entry in self._mods_model.entries},
+            key=str.casefold,
+        )
+
+    @Property(str, notify=stateChanged)
+    def searchQuery(self) -> str:
+        return self._search_query
+
+    @Property(str, notify=stateChanged)
+    def categoryFilter(self) -> str:
+        return self._category_filter or "全部分类"
+
+    @Property(int, notify=stateChanged)
+    def stateFilter(self) -> int:
+        return self._state_filter
+
+    @Property(int, notify=stateChanged)
+    def visibleModCount(self) -> int:
+        return self._mods_model.rowCount()
+
+    @Property(str, notify=stateChanged)
+    def modsPath(self) -> str:
+        return str(self._inspection.mods_path) if self._inspection and self._inspection.mods_path else ""
+
+    @Slot(str)
+    def setSearchQuery(self, value: str) -> None:
+        self._search_query = value
+        self._apply_library_filter()
+
+    @Slot(str)
+    def setCategoryFilter(self, value: str) -> None:
+        self._category_filter = "" if value == "全部分类" else value
+        self._apply_library_filter()
+
+    @Slot(int)
+    def setStateFilter(self, value: int) -> None:
+        if 0 <= value <= 2:
+            self._state_filter = value
+            self._apply_library_filter()
+
+    @Slot()
+    def clearFilters(self) -> None:
+        self._search_query, self._category_filter, self._state_filter = "", "", 0
+        self._apply_library_filter()
+
+    def _apply_library_filter(self) -> None:
+        self._mods_model.set_filter(self._search_query, self._category_filter, self._state_filter)
+        self.stateChanged.emit()
+
     @Slot(int)
     def selectGame(self, index: int) -> None:
         if not 0 <= index < len(self._importers) or index == self._current_game_index:
             return
         self._current_game_index = index
+        self.clearFilters()
         self._settings.setValue("currentImporter", self._current_importer.key)
         self._load_current_importer()
         self._last_message = f"已切换到 {self._current_importer.display_name}"
@@ -500,6 +577,10 @@ class AppController(QObject):
         if self._inspection is None or self._inspection.mods_path is None:
             return
         self._snapshot = self._library.scan(self._inspection.mods_path)
+        groups = {self._mods_model.group_name(entry) for entry in self._snapshot.entries}
+        if self._category_filter not in groups:
+            self._category_filter = ""
+        self._mods_model.set_filter(self._search_query, self._category_filter, self._state_filter)
         self._mods_model.replace(self._snapshot.entries)
         self.stateChanged.emit()
 

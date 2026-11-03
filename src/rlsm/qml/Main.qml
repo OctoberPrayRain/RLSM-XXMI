@@ -2,658 +2,288 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
+import "." as App
+import "components" as C
+import "pages" as Pages
 
 ApplicationWindow {
     id: window
-
-    width: 1240
-    height: 820
-    minimumWidth: 940
-    minimumHeight: 680
+    objectName: "mainWindow"
+    width: 1320
+    height: 880
+    minimumWidth: 1020
+    minimumHeight: 700
     visible: true
-    title: qsTr("RLSM · Rainy Linux Skin Manager")
-    color: "#111318"
+    title: "RLSM · Rainy Linux Skin Manager"
+    color: "#0e1723"
+    font.family: "Noto Sans"
+    font.pixelSize: 14
+    palette.window: "#14202d"
+    palette.windowText: App.Theme.text
+    palette.text: App.Theme.text
+    palette.buttonText: App.Theme.text
+    palette.base: "#101a26"
+    palette.highlight: App.Theme.accent
+    palette.highlightedText: App.Theme.accentInk
 
     property int currentPage: 0
-    property color panelColor: "#191c23"
-    property color raisedColor: "#222630"
-    property color raisedHoverColor: "#2a2f3b"
-    property color primaryColor: "#7aa2f7"
-    property color successColor: "#9ece6a"
-    property color warningColor: "#e0af68"
-    property color textColor: "#eceff4"
-    property color mutedTextColor: "#9da5b4"
+    property string lastShownMessage: ""
+    property bool initialized: false
+    Component.onCompleted: { lastShownMessage = appController.lastMessage; initialized = true }
 
-    FolderDialog {
-        id: moduleFolderDialog
-        title: qsTr("选择 XXMI 根目录或 %1 目录").arg(appController.importerName)
-        onAccepted: appController.setModuleUrl(selectedFolder)
+    background: Rectangle {
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0; color: "#142b35" }
+            GradientStop { position: 0.5; color: "#101b2a" }
+            GradientStop { position: 1; color: "#1d2134" }
+        }
+        Image {
+            anchors.fill: parent
+            source: appearance.backgroundUrl
+            fillMode: appearance.backgroundFit === 0 ? Image.PreserveAspectCrop : Image.PreserveAspectFit
+            asynchronous: true
+            sourceSize.width: Math.max(window.width, 1920)
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: "#0c1420"
+            opacity: appearance.backgroundUrl.length > 0 ? appearance.backgroundDim : 0.18
+        }
     }
 
-    FolderDialog {
-        id: prefixFolderDialog
-        title: qsTr("选择 %1 使用的 Wine 前缀").arg(appController.gameName)
-        onAccepted: appController.setWinePrefixUrl(selectedFolder)
-    }
-
+    FolderDialog { id: moduleDialog; title: qsTr("选择 XXMI 模块目录"); onAccepted: appController.setModuleUrl(selectedFolder) }
+    FolderDialog { id: prefixDialog; title: qsTr("选择 Wine 前缀"); onAccepted: appController.setWinePrefixUrl(selectedFolder) }
     FileDialog {
-        id: importFileDialog
-        title: qsTr("选择 Mod 压缩包")
-        fileMode: FileDialog.OpenFile
+        id: archiveDialog
+        title: qsTr("导入 Mod 压缩包")
         nameFilters: [qsTr("Mod 压缩包 (*.zip *.7z *.rar)"), qsTr("所有文件 (*)")]
-        onAccepted: appController.importModUrl(selectedFile)
+        onAccepted: { appController.importModUrl(selectedFile); importDialog.close() }
     }
-
     FolderDialog {
-        id: importFolderDialog
-        title: qsTr("选择需要导入的 Mod 目录")
-        onAccepted: appController.importModFolderUrl(selectedFolder)
+        id: modFolderDialog
+        title: qsTr("导入 Mod 目录")
+        onAccepted: { appController.importModFolderUrl(selectedFolder); importDialog.close() }
+    }
+    FileDialog {
+        id: backgroundDialog
+        title: qsTr("选择背景图片")
+        nameFilters: [qsTr("图片 (*.png *.jpg *.jpeg *.webp *.bmp)"), qsTr("所有文件 (*)")]
+        onAccepted: appearance.setBackground(selectedFile)
     }
 
     Connections {
         target: appController
-
         function onStateChanged() {
-            if (!modulePathField.activeFocus)
-                modulePathField.text = appController.modulePath
-            gameSelector.currentIndex = appController.currentGameIndex
-            lutrisSelector.currentIndex = appController.currentLutrisProfileIndex
+            if (window.initialized && appController.lastMessage.length > 0 && appController.lastMessage !== window.lastShownMessage) {
+                window.lastShownMessage = appController.lastMessage
+                messageText.text = appController.lastMessage
+                notice.open()
+                noticeTimer.restart()
+            }
         }
     }
+    Connections {
+        target: appearance
+        function onErrorOccurred(message) { messageText.text = message; notice.open(); noticeTimer.restart() }
+    }
 
-    component NavigationButton: Button {
+    component NavButton: Button {
+        id: nav
         required property int pageIndex
+        required property string symbol
         Layout.fillWidth: true
-        text: ""
+        implicitHeight: 46
         checkable: true
         checked: window.currentPage === pageIndex
-        enabled: pageIndex === 0 || appController.environmentReady
+        hoverEnabled: true
+        leftPadding: 14
+        contentItem: RowLayout {
+            spacing: 13
+            C.Icon { name: nav.symbol; color: nav.checked ? App.Theme.accent : App.Theme.muted; width: 18; height: 18 }
+            Label { text: nav.text; color: nav.checked ? App.Theme.text : App.Theme.muted; font.pixelSize: 14; font.weight: nav.checked ? Font.DemiBold : Font.Normal; Layout.fillWidth: true }
+            Rectangle { visible: nav.checked; width: 4; height: 16; radius: 2; color: App.Theme.accent }
+        }
+        background: Rectangle { radius: 9; color: nav.checked ? "#cc253c41" : nav.hovered ? "#aa243440" : "transparent" }
         onClicked: window.currentPage = pageIndex
     }
 
     RowLayout {
         anchors.fill: parent
         spacing: 0
-
         Rectangle {
+            Layout.preferredWidth: 210
             Layout.fillHeight: true
-            Layout.preferredWidth: 230
-            color: window.panelColor
-
+            color: "#e6101a26"
+            Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: "#34334252" }
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 20
-                spacing: 10
-
-                Label {
-                    text: "RLSM"
-                    color: window.textColor
-                    font.pixelSize: 26
-                    font.bold: true
+                anchors.margins: 18
+                spacing: 7
+                RowLayout {
+                    Layout.topMargin: 14
+                    Layout.leftMargin: 8
+                    spacing: 11
+                    Rectangle {
+                        width: 36; height: 36; radius: 11; color: App.Theme.accent
+                        Text { anchors.centerIn: parent; text: "R"; font.pixelSize: 24; font.weight: Font.Black; color: App.Theme.accentInk }
+                    }
+                    Column {
+                        spacing: 2
+                        Label { text: "RLSM"; color: App.Theme.text; font.pixelSize: 20; font.weight: Font.Bold; font.letterSpacing: 1 }
+                        Label { text: "Rainy Skin Manager"; color: App.Theme.subtle; font.pixelSize: 10 }
+                    }
                 }
-
-                Label {
-                    text: qsTr("Rainy Linux Skin Manager")
-                    color: window.mutedTextColor
-                    font.pixelSize: 12
-                }
-
-                Item { Layout.preferredHeight: 16 }
-
-                NavigationButton {
-                    pageIndex: 0
-                    text: qsTr("游戏环境")
-                }
-
-                NavigationButton {
-                    pageIndex: 1
-                    text: qsTr("Mod 资料库")
-                }
-
-                NavigationButton {
-                    pageIndex: 2
-                    text: qsTr("导入与分类")
-                }
-
+                Label { Layout.topMargin: 34; Layout.leftMargin: 14; Layout.bottomMargin: 5; text: qsTr("工作空间"); color: App.Theme.subtle; font.pixelSize: 11; font.letterSpacing: 1 }
+                NavButton { pageIndex: 0; symbol: "grid"; text: qsTr("Mod 资料库") }
+                NavButton { pageIndex: 1; symbol: "game"; text: qsTr("游戏环境") }
                 Item { Layout.fillHeight: true }
-
-                Label {
-                    Layout.fillWidth: true
-                    text: appController.gameName + " · " + appController.importerName
-                    color: window.mutedTextColor
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
+                NavButton { pageIndex: 2; symbol: "image"; text: qsTr("外观") }
+                Rectangle { Layout.fillWidth: true; Layout.topMargin: 14; Layout.bottomMargin: 14; height: 1; color: App.Theme.border }
+                RowLayout {
+                    Layout.leftMargin: 12
+                    Layout.bottomMargin: 10
+                    spacing: 8
+                    Rectangle { width: 6; height: 6; radius: 3; color: appController.environmentReady ? App.Theme.accent : App.Theme.warning }
+                    Label { text: appController.importerName + (appController.environmentReady ? qsTr(" 已经连接") : qsTr(" 待配置")); color: App.Theme.muted; font.pixelSize: 12 }
                 }
             }
         }
 
-        StackLayout {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: window.currentPage
+            spacing: 0
 
             Rectangle {
-                color: window.color
-
-                ColumnLayout {
+                Layout.fillWidth: true
+                implicitHeight: 86
+                color: "#77101a26"
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: "#44344454" }
+                RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 28
-                    spacing: 11
-
-                    RowLayout {
-                        Layout.fillWidth: true
-
-                        Label {
-                            text: qsTr("游戏环境")
-                            color: window.textColor
-                            font.pixelSize: 30
-                            font.bold: true
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ComboBox {
-                            id: gameSelector
-                            Layout.preferredWidth: 390
-                            model: appController.gameOptions
-                            currentIndex: appController.currentGameIndex
-                            onActivated: appController.selectGame(currentIndex)
-                        }
+                    anchors.leftMargin: 30
+                    anchors.rightMargin: 30
+                    spacing: 14
+                    C.SelectField {
+                        objectName: "gameSelector"
+                        Layout.preferredWidth: Math.min(360, window.width * 0.29)
+                        model: appController.gameOptions
+                        currentIndex: appController.currentGameIndex
+                        onActivated: appController.selectGame(currentIndex)
                     }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("每个游戏分别绑定 XXMI 模块、Lutris 启动项和 Wine 前缀。")
-                        color: window.mutedTextColor
-                        font.pixelSize: 14
-                        wrapMode: Text.WordWrap
+                    Item { Layout.fillWidth: true }
+                    C.ActionButton {
+                        text: "F10"
+                        symbol: "keyboard"
+                        kind: "quiet"
+                        enabled: appController.hyprlandAvailable
+                        onClicked: appController.reloadGame()
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("向当前游戏发送刷新按键")
                     }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-
-                        TextField {
-                            id: modulePathField
-                            Layout.fillWidth: true
-                            text: appController.modulePath
-                            placeholderText: qsTr("XXMI 根目录或 %1 目录").arg(appController.importerName)
-                            selectByMouse: true
-                            onAccepted: appController.setModulePath(text)
-                        }
-
-                        Button {
-                            text: qsTr("浏览")
-                            onClicked: moduleFolderDialog.open()
-                        }
-
-                        Button {
-                            text: qsTr("检查模块")
-                            onClicked: appController.setModulePath(modulePathField.text)
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 145
-                        radius: 12
-                        color: window.raisedColor
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 18
-                            spacing: 16
-
-                            Rectangle {
-                                Layout.preferredWidth: 10
-                                Layout.fillHeight: true
-                                radius: 5
-                                color: appController.environmentReady ? window.successColor : window.warningColor
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                spacing: 8
-
-                                Label {
-                                    text: appController.environmentTitle
-                                    color: window.textColor
-                                    font.pixelSize: 18
-                                    font.bold: true
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: appController.environmentDetails
-                                    color: window.mutedTextColor
-                                    wrapMode: Text.Wrap
-                                }
-
-                                Item { Layout.fillHeight: true }
-
-                                Label {
-                                    visible: appController.environmentReady
-                                    text: qsTr("已经发现 %1 个 Mod，其中 %2 个已启用").arg(appController.modCount).arg(appController.enabledCount)
-                                    color: window.successColor
-                                }
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-
-                        Label {
-                            text: qsTr("Lutris 与 Wine")
-                            color: window.textColor
-                            font.pixelSize: 20
-                            font.bold: true
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        Button {
-                            text: qsTr("重新读取 Lutris")
-                            onClicked: appController.refreshLutris()
-                        }
-                    }
-
-                    ComboBox {
-                        id: lutrisSelector
-                        Layout.fillWidth: true
-                        model: appController.lutrisProfileOptions
-                        currentIndex: appController.currentLutrisProfileIndex
-                        onActivated: appController.selectLutrisProfile(currentIndex)
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-
-                        TextField {
-                            Layout.fillWidth: true
-                            text: appController.winePrefix
-                            placeholderText: qsTr("Lutris 启动项没有前缀时，在这里单独指定")
-                            readOnly: true
-                            selectByMouse: true
-                        }
-
-                        Button {
-                            text: qsTr("选择前缀")
-                            onClicked: prefixFolderDialog.open()
-                        }
-
-                        Button {
-                            visible: appController.hasWinePrefixOverride
-                            text: qsTr("恢复 Lutris 配置")
-                            onClicked: appController.clearWinePrefixOverride()
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 150
-                        radius: 12
-                        color: window.raisedColor
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 18
-                            spacing: 16
-
-                            Rectangle {
-                                Layout.preferredWidth: 10
-                                Layout.fillHeight: true
-                                radius: 5
-                                color: appController.wineReady ? window.successColor : window.warningColor
-                            }
-
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                spacing: 8
-
-                                Label {
-                                    text: appController.wineTitle
-                                    color: window.textColor
-                                    font.pixelSize: 18
-                                    font.bold: true
-                                }
-
-                                Label {
-                                    Layout.fillWidth: true
-                                    text: appController.wineDetails
-                                    color: window.mutedTextColor
-                                    wrapMode: Text.Wrap
-                                }
-
-                                Item { Layout.fillHeight: true }
-                            }
-
-                            Button {
-                                text: qsTr("由 Lutris 启动")
-                                enabled: appController.canLaunch
-                                onClicked: appController.launchSelectedProfile()
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-
-                        CheckBox {
-                            text: qsTr("切换 Mod 后自动发送 F10")
-                            checked: appController.reloadAfterToggle
-                            palette.windowText: window.textColor
-                            onToggled: {
-                                if (checked !== appController.reloadAfterToggle)
-                                    appController.setReloadAfterToggle(checked)
-                            }
-                        }
-
-                        Label {
-                            Layout.fillWidth: true
-                            text: appController.hyprlandAvailable ? qsTr("Hyprland 可以使用") : qsTr("当前会话无法控制 Hyprland")
-                            color: appController.hyprlandAvailable ? window.successColor : window.warningColor
-                        }
-
-                        Button {
-                            text: qsTr("向游戏发送 F10")
-                            enabled: appController.hyprlandAvailable
-                            onClicked: appController.reloadGame()
-                        }
-                    }
-
-                    Label {
-                        visible: appController.lastMessage.length > 0
-                        Layout.fillWidth: true
-                        text: appController.lastMessage
-                        color: window.mutedTextColor
-                        wrapMode: Text.Wrap
-                    }
-
-                    Item { Layout.fillHeight: true }
-                }
-            }
-
-            Rectangle {
-                color: window.color
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 30
-                    spacing: 16
-
-                    RowLayout {
-                        Layout.fillWidth: true
-
-                        ColumnLayout {
-                            Label {
-                                text: appController.gameName + " · " + qsTr("Mod 资料库")
-                                color: window.textColor
-                                font.pixelSize: 28
-                                font.bold: true
-                            }
-
-                            Label {
-                                text: qsTr("%1 个 Mod · %2 个已启用").arg(appController.modCount).arg(appController.enabledCount)
-                                color: window.mutedTextColor
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        CheckBox {
-                            id: singleSelect
-                            text: qsTr("同组单选")
-                            checked: true
-                            palette.windowText: window.textColor
-                        }
-
-                        Button {
-                            text: qsTr("重新扫描")
-                            onClicked: appController.refreshLibrary()
-                        }
-                    }
-
-                    Rectangle {
-                        visible: appController.lastMessage.length > 0
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: messageLabel.implicitHeight + 24
-                        radius: 8
-                        color: window.raisedColor
-
-                        Label {
-                            id: messageLabel
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            text: appController.lastMessage
-                            color: window.mutedTextColor
-                            wrapMode: Text.Wrap
-                        }
-                    }
-
-                    GridView {
-                        id: modGrid
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        model: appController.modsModel
-                        cellWidth: 290
-                        cellHeight: 250
-
-                        delegate: Item {
-                            id: card
-                            required property int index
-                            required property string displayName
-                            required property string directoryName
-                            required property string groupPath
-                            required property bool modEnabled
-                            required property string previewUrl
-                            required property string fullPath
-
-                            width: modGrid.cellWidth
-                            height: modGrid.cellHeight
-
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: 7
-                                radius: 12
-                                color: cardHover.hovered ? window.raisedHoverColor : window.raisedColor
-
-                                HoverHandler {
-                                    id: cardHover
-                                }
-
-                                ColumnLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 12
-                                    spacing: 8
-
-                                    Rectangle {
-                                        Layout.fillWidth: true
-                                        Layout.fillHeight: true
-                                        radius: 8
-                                        color: "#151820"
-                                        clip: true
-
-                                        Image {
-                                            anchors.fill: parent
-                                            source: card.previewUrl
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true
-                                            visible: card.previewUrl.length > 0
-                                        }
-
-                                        Label {
-                                            anchors.centerIn: parent
-                                            visible: card.previewUrl.length === 0
-                                            text: "RLSM"
-                                            color: window.mutedTextColor
-                                            font.pixelSize: 20
-                                            font.bold: true
-                                        }
-                                    }
-
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: card.displayName
-                                        color: window.textColor
-                                        font.pixelSize: 16
-                                        font.bold: true
-                                        elide: Text.ElideRight
-                                    }
-
-                                    RowLayout {
-                                        Layout.fillWidth: true
-
-                                        Label {
-                                            Layout.fillWidth: true
-                                            text: card.groupPath
-                                            color: window.mutedTextColor
-                                            elide: Text.ElideMiddle
-                                        }
-
-                                        Button {
-                                            text: card.modEnabled ? qsTr("停用") : qsTr("启用")
-                                            onClicked: appController.toggleMod(card.index, singleSelect.checked)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        Label {
-                            anchors.centerIn: parent
-                            visible: appController.modCount === 0
-                            text: qsTr("Mods 目录中还没有识别到 Mod")
-                            color: window.mutedTextColor
-                            font.pixelSize: 16
-                        }
+                    C.ActionButton {
+                        text: qsTr("启动游戏")
+                        symbol: "play"
+                        kind: "primary"
+                        enabled: appController.canLaunch
+                        onClicked: appController.launchSelectedProfile()
+                        ToolTip.visible: hovered && !appController.canLaunch
+                        ToolTip.text: qsTr("请在游戏环境中绑定 Lutris 启动项")
                     }
                 }
             }
 
-            Rectangle {
-                color: window.color
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 30
-                    spacing: 18
-
-                    Label {
-                        text: appController.gameName + " · " + qsTr("导入与分类")
-                        color: window.textColor
-                        font.pixelSize: 28
-                        font.bold: true
-                    }
-
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("导入器会识别一个或多个 Mod，自动放入角色、武器、界面或未分类目录。新导入的 Mod 默认停用。")
-                        color: window.mutedTextColor
-                        font.pixelSize: 14
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 190
-                        radius: 12
-                        color: window.raisedColor
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
-                            spacing: 12
-
-                            Label {
-                                text: qsTr("导入 Mod")
-                                color: window.textColor
-                                font.pixelSize: 20
-                                font.bold: true
-                            }
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: qsTr("支持普通目录、ZIP、7z 和 RAR。压缩包外层目录会自动跳过；同名 Mod 会保留两份。")
-                                color: window.mutedTextColor
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Item { Layout.fillHeight: true }
-
-                            RowLayout {
-                                Button {
-                                    text: qsTr("选择压缩包")
-                                    onClicked: importFileDialog.open()
-                                }
-
-                                Button {
-                                    text: qsTr("选择目录")
-                                    onClicked: importFolderDialog.open()
-                                }
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 190
-                        radius: 12
-                        color: window.raisedColor
-
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 20
-                            spacing: 12
-
-                            Label {
-                                text: qsTr("自动分类现有 Mod")
-                                color: window.textColor
-                                font.pixelSize: 20
-                                font.bold: true
-                            }
-
-                            Label {
-                                Layout.fillWidth: true
-                                text: qsTr("检查根目录和“未分类”目录中的 Mod。识别依据包括 .rlsm.json、模型文件名称前缀和目录名称；已有分类不会移动。")
-                                color: window.mutedTextColor
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Item { Layout.fillHeight: true }
-
-                            Button {
-                                text: qsTr("开始自动分类")
-                                onClicked: appController.autoCategorize()
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        visible: appController.lastMessage.length > 0
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: importMessage.implicitHeight + 24
-                        radius: 8
-                        color: window.raisedColor
-
-                        Label {
-                            id: importMessage
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            text: appController.lastMessage
-                            color: window.mutedTextColor
-                            wrapMode: Text.Wrap
-                        }
-                    }
-
-                    Item { Layout.fillHeight: true }
+            StackLayout {
+                id: pages
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.margins: 30
+                Layout.bottomMargin: 14
+                currentIndex: window.currentPage
+                Pages.LibraryPage {
+                    objectName: "libraryPage"
+                    onImportRequested: importDialog.open()
+                    onEnvironmentRequested: window.currentPage = 1
+                    onClassificationRequested: classifyDialog.open()
                 }
+                Pages.EnvironmentPage {
+                    objectName: "environmentPage"
+                    onModuleBrowseRequested: moduleDialog.open()
+                    onPrefixBrowseRequested: prefixDialog.open()
+                }
+                Pages.AppearancePage { objectName: "appearancePage"; onBackgroundBrowseRequested: backgroundDialog.open() }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 30
+                Layout.rightMargin: 30
+                Layout.bottomMargin: 18
+                Label { text: appController.gameName; color: App.Theme.subtle; font.pixelSize: 11 }
+                Label { text: "/"; color: App.Theme.subtle; font.pixelSize: 11 }
+                Label { Layout.fillWidth: true; text: appController.modsPath || qsTr("尚未连接 Mod 目录"); color: App.Theme.subtle; font.pixelSize: 11; elide: Text.ElideMiddle }
+                Label { text: "RLSM 0.1"; color: App.Theme.subtle; font.pixelSize: 11 }
             }
         }
     }
+
+    Dialog {
+        id: importDialog
+        objectName: "importDialog"
+        anchors.centerIn: parent
+        width: 540
+        modal: true
+        padding: 28
+        background: C.Panel { color: "#172330"; border.color: "#3e5262" }
+        contentItem: ColumnLayout {
+            spacing: 18
+            RowLayout {
+                Label { text: qsTr("导入 Mod"); color: App.Theme.text; font.pixelSize: 24; font.weight: Font.DemiBold }
+                Item { Layout.fillWidth: true }
+                C.ActionButton { symbol: "close"; kind: "quiet"; implicitWidth: 34; implicitHeight: 34; onClicked: importDialog.close() }
+            }
+            Label { Layout.fillWidth: true; text: qsTr("选择压缩包或已经解压的目录，导入到 %1。").arg(appController.gameName); color: App.Theme.muted; wrapMode: Text.WordWrap; font.pixelSize: 14 }
+            C.ActionButton { Layout.fillWidth: true; text: qsTr("选择压缩包 · ZIP / 7z / RAR"); symbol: "upload"; kind: "primary"; implicitHeight: 52; onClicked: archiveDialog.open() }
+            C.ActionButton { Layout.fillWidth: true; text: qsTr("选择 Mod 目录"); symbol: "folder"; implicitHeight: 52; onClicked: modFolderDialog.open() }
+            Label { Layout.fillWidth: true; text: qsTr("自动识别分类 · 同名保留两份 · 导入后默认停用"); color: App.Theme.subtle; font.pixelSize: 12; wrapMode: Text.WordWrap }
+        }
+    }
+
+    Dialog {
+        id: classifyDialog
+        anchors.centerIn: parent
+        width: 500
+        modal: true
+        padding: 26
+        background: C.Panel { color: "#172330" }
+        contentItem: ColumnLayout {
+            spacing: 20
+            Label { text: qsTr("整理未分类 Mod"); color: App.Theme.text; font.pixelSize: 22; font.weight: Font.DemiBold }
+            Label { Layout.fillWidth: true; text: qsTr("根据元数据和文件名称，把根目录或“未分类”中的 Mod 移动到对应分类。已有分类保持原样，无法识别的 Mod 保留原位置。"); color: App.Theme.muted; wrapMode: Text.WordWrap; lineHeight: 1.4 }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                C.ActionButton { text: qsTr("取消"); onClicked: classifyDialog.close() }
+                C.ActionButton { text: qsTr("开始整理"); kind: "primary"; onClicked: { classifyDialog.close(); appController.autoCategorize() } }
+            }
+        }
+    }
+
+    Popup {
+        id: notice
+        parent: Overlay.overlay
+        x: Math.max(230, (window.width - width) / 2)
+        y: window.height - height - 44
+        width: Math.min(680, window.width - 270)
+        padding: 16
+        closePolicy: Popup.CloseOnEscape
+        background: C.Panel { color: "#f2223442"; border.color: "#526a7a" }
+        contentItem: RowLayout {
+            spacing: 12
+            C.Icon { name: "info"; color: App.Theme.accent }
+            Label { id: messageText; Layout.fillWidth: true; color: App.Theme.text; wrapMode: Text.Wrap; font.pixelSize: 13 }
+            C.ActionButton { symbol: "close"; kind: "quiet"; implicitWidth: 28; implicitHeight: 28; onClicked: notice.close() }
+        }
+    }
+    Timer { id: noticeTimer; interval: 8500; onTriggered: notice.close() }
 }
