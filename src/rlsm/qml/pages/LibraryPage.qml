@@ -145,8 +145,8 @@ Item {
                     C.Panel {
                         anchors.fill: parent
                         anchors.margins: 6
-                        color: hover.hovered ? App.Theme.hover : App.Theme.surface
-                        border.color: card.modEnabled ? App.Theme.accentBorder : App.Theme.border
+                        glassColor: hover.hovered ? App.Theme.hover : App.Theme.surface
+                        borderColor: card.modEnabled ? App.Theme.accentBorder : App.Theme.border
                         HoverHandler { id: hover }
                         ColumnLayout {
                             anchors.fill: parent

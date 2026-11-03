@@ -31,8 +31,10 @@ ApplicationWindow {
     property bool initialized: false
     Component.onCompleted: { lastShownMessage = appController.lastMessage; initialized = true }
     Binding { target: App.Theme; property: "accent"; value: appearance.accentColor }
+    Binding { target: App.Theme; property: "backdropSource"; value: backdrop }
 
     background: Rectangle {
+        id: backdrop
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0; color: App.Theme.gradientStart }
@@ -233,7 +235,7 @@ ApplicationWindow {
         width: 540
         modal: true
         padding: 28
-        background: C.Panel { color: "#172330"; border.color: "#3e5262" }
+        background: C.Panel { glassColor: "#a6172330"; borderColor: "#55ffffff" }
         contentItem: ColumnLayout {
             spacing: 18
             RowLayout {
@@ -253,7 +255,7 @@ ApplicationWindow {
         width: 500
         modal: true
         padding: 26
-        background: C.Panel { color: "#172330" }
+        background: C.Panel { glassColor: "#a6172330" }
         contentItem: ColumnLayout {
             spacing: 20
             Label { text: qsTr("整理分类"); color: App.Theme.text; font.pixelSize: 22; font.weight: Font.DemiBold }
@@ -274,7 +276,7 @@ ApplicationWindow {
         width: Math.min(680, window.width - 270)
         padding: 16
         closePolicy: Popup.CloseOnEscape
-        background: C.Panel { color: "#f2223442"; border.color: App.Theme.accentBorder }
+        background: C.Panel { glassColor: "#b8223442"; borderColor: App.Theme.accentBorder }
         contentItem: RowLayout {
             spacing: 12
             C.Icon { name: "info"; color: App.Theme.accent }

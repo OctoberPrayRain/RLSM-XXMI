@@ -26,7 +26,7 @@ ComboBox {
     }
     background: Rectangle {
         radius: 9
-        color: control.hovered ? "#263644" : App.Theme.field
+        color: control.hovered ? App.Theme.fieldHover : App.Theme.field
         border.color: control.activeFocus ? App.Theme.accent : App.Theme.border
     }
     delegate: ItemDelegate {
@@ -50,7 +50,7 @@ ComboBox {
         width: control.width
         padding: 6
         implicitHeight: Math.min(contentItem.implicitHeight + 12, 340)
-        background: Rectangle { color: "#172330"; radius: 10; border.color: App.Theme.border }
+        background: Rectangle { color: "#e6172330"; radius: 10; border.color: App.Theme.border }
         contentItem: ListView {
             clip: true
             implicitHeight: contentHeight

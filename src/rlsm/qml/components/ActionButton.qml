@@ -36,7 +36,7 @@ Button {
         radius: 9
         color: control.kind === "primary" ? (control.down ? App.Theme.accentPressed : control.hovered ? App.Theme.accentHover : App.Theme.accent)
              : control.down ? App.Theme.selected : control.hovered ? App.Theme.hover
-             : control.kind === "quiet" ? "transparent" : "#c923303e"
+             : control.kind === "quiet" ? "transparent" : App.Theme.button
         border.width: control.activeFocus || control.kind === "secondary" ? 1 : 0
         border.color: control.activeFocus ? App.Theme.accent : App.Theme.border
         Behavior on color { ColorAnimation { duration: 120 } }
