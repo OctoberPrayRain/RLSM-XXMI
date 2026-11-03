@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -12,12 +13,38 @@ from rlsm.presentation import AppController
 from rlsm.presentation.appearance import AppearanceSettings
 
 
+def _add_fcitx_plugin_path() -> None:
+    if not sys.platform.startswith("linux"):
+        return
+    if os.environ.get("QT_IM_MODULE", "").casefold() not in {"fcitx", "fcitx5"}:
+        return
+
+    plugin_relative_path = Path(
+        "platforminputcontexts/libfcitx5platforminputcontextplugin.so"
+    )
+    library_paths = [Path(value) for value in QCoreApplication.libraryPaths()]
+    if any((path / plugin_relative_path).is_file() for path in library_paths):
+        return
+
+    for path in (
+        Path("/usr/lib/qt6/plugins"),
+        Path("/usr/lib64/qt6/plugins"),
+        Path("/usr/lib/x86_64-linux-gnu/qt6/plugins"),
+    ):
+        if (path / plugin_relative_path).is_file():
+            QCoreApplication.setLibraryPaths(
+                [*(str(item) for item in library_paths), str(path)]
+            )
+            return
+
+
 def main() -> int:
     QCoreApplication.setOrganizationName("Rainy")
     QCoreApplication.setOrganizationDomain("octoberprayrain.github.io")
     QCoreApplication.setApplicationName("RLSM")
 
     QQuickStyle.setStyle("Basic")
+    _add_fcitx_plugin_path()
     app = QGuiApplication(sys.argv)
 
     engine = QQmlApplicationEngine()
