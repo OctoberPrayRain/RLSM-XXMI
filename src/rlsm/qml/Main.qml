@@ -6,10 +6,10 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
 
-    width: 1180
-    height: 760
-    minimumWidth: 900
-    minimumHeight: 600
+    width: 1240
+    height: 820
+    minimumWidth: 940
+    minimumHeight: 680
     visible: true
     title: qsTr("RLSM · Rainy Linux Skin Manager")
     color: "#111318"
@@ -25,9 +25,26 @@ ApplicationWindow {
     property color mutedTextColor: "#9da5b4"
 
     FolderDialog {
-        id: folderDialog
-        title: qsTr("选择 XXMI 根目录或 ZZMI 目录")
+        id: moduleFolderDialog
+        title: qsTr("选择 XXMI 根目录或 %1 目录").arg(appController.importerName)
         onAccepted: appController.setModuleUrl(selectedFolder)
+    }
+
+    FolderDialog {
+        id: prefixFolderDialog
+        title: qsTr("选择 %1 使用的 Wine 前缀").arg(appController.gameName)
+        onAccepted: appController.setWinePrefixUrl(selectedFolder)
+    }
+
+    Connections {
+        target: appController
+
+        function onStateChanged() {
+            if (!modulePathField.activeFocus)
+                modulePathField.text = appController.modulePath
+            gameSelector.currentIndex = appController.currentGameIndex
+            lutrisSelector.currentIndex = appController.currentLutrisProfileIndex
+        }
     }
 
     component NavigationButton: Button {
@@ -71,7 +88,7 @@ ApplicationWindow {
 
                 NavigationButton {
                     pageIndex: 0
-                    text: qsTr("环境设置")
+                    text: qsTr("游戏环境")
                 }
 
                 NavigationButton {
@@ -82,9 +99,11 @@ ApplicationWindow {
                 Item { Layout.fillHeight: true }
 
                 Label {
+                    Layout.fillWidth: true
                     text: appController.gameName + " · " + appController.importerName
                     color: window.mutedTextColor
                     font.pixelSize: 12
+                    elide: Text.ElideRight
                 }
             }
         }
@@ -99,21 +118,35 @@ ApplicationWindow {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 36
-                    spacing: 18
+                    anchors.margins: 28
+                    spacing: 11
 
-                    Label {
-                        text: qsTr("连接 XXMI")
-                        color: window.textColor
-                        font.pixelSize: 30
-                        font.bold: true
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Label {
+                            text: qsTr("游戏环境")
+                            color: window.textColor
+                            font.pixelSize: 30
+                            font.bold: true
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        ComboBox {
+                            id: gameSelector
+                            Layout.preferredWidth: 390
+                            model: appController.gameOptions
+                            currentIndex: appController.currentGameIndex
+                            onActivated: appController.selectGame(currentIndex)
+                        }
                     }
 
                     Label {
-                        Layout.maximumWidth: 720
-                        text: qsTr("选择 XXMI 根目录或者游戏模块目录。RLSM 将检查 Mods 目录和 d3dx.ini。")
+                        Layout.fillWidth: true
+                        text: qsTr("每个游戏分别绑定 XXMI 模块、Lutris 启动项和 Wine 前缀。")
                         color: window.mutedTextColor
-                        font.pixelSize: 15
+                        font.pixelSize: 14
                         wrapMode: Text.WordWrap
                     }
 
@@ -125,49 +158,49 @@ ApplicationWindow {
                             id: modulePathField
                             Layout.fillWidth: true
                             text: appController.modulePath
-                            placeholderText: qsTr("XXMI 或 ZZMI 目录")
+                            placeholderText: qsTr("XXMI 根目录或 %1 目录").arg(appController.importerName)
                             selectByMouse: true
                             onAccepted: appController.setModulePath(text)
                         }
 
                         Button {
                             text: qsTr("浏览")
-                            onClicked: folderDialog.open()
+                            onClicked: moduleFolderDialog.open()
                         }
 
                         Button {
-                            text: qsTr("检查并连接")
+                            text: qsTr("检查模块")
                             onClicked: appController.setModulePath(modulePathField.text)
                         }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 190
+                        Layout.preferredHeight: 145
                         radius: 12
                         color: window.raisedColor
 
                         RowLayout {
                             anchors.fill: parent
-                            anchors.margins: 22
-                            spacing: 18
+                            anchors.margins: 18
+                            spacing: 16
 
                             Rectangle {
-                                Layout.preferredWidth: 12
+                                Layout.preferredWidth: 10
                                 Layout.fillHeight: true
-                                radius: 6
+                                radius: 5
                                 color: appController.environmentReady ? window.successColor : window.warningColor
                             }
 
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                spacing: 10
+                                spacing: 8
 
                                 Label {
                                     text: appController.environmentTitle
                                     color: window.textColor
-                                    font.pixelSize: 19
+                                    font.pixelSize: 18
                                     font.bold: true
                                 }
 
@@ -189,8 +222,107 @@ ApplicationWindow {
                         }
                     }
 
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Label {
+                            text: qsTr("Lutris 与 Wine")
+                            color: window.textColor
+                            font.pixelSize: 20
+                            font.bold: true
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Button {
+                            text: qsTr("重新读取 Lutris")
+                            onClicked: appController.refreshLutris()
+                        }
+                    }
+
+                    ComboBox {
+                        id: lutrisSelector
+                        Layout.fillWidth: true
+                        model: appController.lutrisProfileOptions
+                        currentIndex: appController.currentLutrisProfileIndex
+                        onActivated: appController.selectLutrisProfile(currentIndex)
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        TextField {
+                            Layout.fillWidth: true
+                            text: appController.winePrefix
+                            placeholderText: qsTr("Lutris 启动项没有前缀时，在这里单独指定")
+                            readOnly: true
+                            selectByMouse: true
+                        }
+
+                        Button {
+                            text: qsTr("选择前缀")
+                            onClicked: prefixFolderDialog.open()
+                        }
+
+                        Button {
+                            visible: appController.hasWinePrefixOverride
+                            text: qsTr("恢复 Lutris 配置")
+                            onClicked: appController.clearWinePrefixOverride()
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 150
+                        radius: 12
+                        color: window.raisedColor
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 18
+                            spacing: 16
+
+                            Rectangle {
+                                Layout.preferredWidth: 10
+                                Layout.fillHeight: true
+                                radius: 5
+                                color: appController.wineReady ? window.successColor : window.warningColor
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                spacing: 8
+
+                                Label {
+                                    text: appController.wineTitle
+                                    color: window.textColor
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                }
+
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: appController.wineDetails
+                                    color: window.mutedTextColor
+                                    wrapMode: Text.Wrap
+                                }
+
+                                Item { Layout.fillHeight: true }
+                            }
+
+                            Button {
+                                text: qsTr("由 Lutris 启动")
+                                enabled: appController.canLaunch
+                                onClicked: appController.launchSelectedProfile()
+                            }
+                        }
+                    }
+
                     Label {
                         visible: appController.lastMessage.length > 0
+                        Layout.fillWidth: true
                         text: appController.lastMessage
                         color: window.mutedTextColor
                         wrapMode: Text.Wrap
@@ -213,7 +345,7 @@ ApplicationWindow {
 
                         ColumnLayout {
                             Label {
-                                text: qsTr("Mod 资料库")
+                                text: appController.gameName + " · " + qsTr("Mod 资料库")
                                 color: window.textColor
                                 font.pixelSize: 28
                                 font.bold: true
