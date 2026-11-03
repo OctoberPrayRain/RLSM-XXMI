@@ -162,9 +162,11 @@ Item {
                                 Image {
                                     anchors.fill: parent
                                     source: card.previewUrl
-                                    fillMode: Image.PreserveAspectCrop
+                                    fillMode: Image.PreserveAspectFit
                                     asynchronous: true
                                     cache: false
+                                    smooth: true
+                                    mipmap: true
                                 }
                                 C.Icon {
                                     visible: card.previewUrl.length === 0
