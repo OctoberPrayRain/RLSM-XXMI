@@ -8,6 +8,8 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
+from rlsm.presentation import AppController
+
 
 def main() -> int:
     QCoreApplication.setOrganizationName("Rainy")
@@ -18,6 +20,9 @@ def main() -> int:
     app = QGuiApplication(sys.argv)
 
     engine = QQmlApplicationEngine()
+    controller = AppController(engine)
+    engine.rootContext().setContextProperty("appController", controller)
+
     qml_path = Path(__file__).resolve().parent / "qml" / "Main.qml"
     engine.load(QUrl.fromLocalFile(str(qml_path)))
 

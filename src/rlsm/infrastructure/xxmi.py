@@ -35,6 +35,34 @@ class EnvironmentInspection:
         return not self.issues
 
 
+def discover_module_path(
+    game: GameDefinition = ZZMI,
+    search_roots: tuple[Path, ...] | None = None,
+) -> Path | None:
+    roots = search_roots or (Path.home() / "Games",)
+    for root in roots:
+        if not root.is_dir():
+            continue
+
+        direct_match = _resolve_module_path(root, game)
+        if direct_match is not None:
+            return direct_match
+
+        try:
+            candidates = sorted(
+                (child for child in root.iterdir() if child.is_dir()),
+                key=lambda path: path.name.casefold(),
+            )
+        except OSError:
+            continue
+
+        for candidate in candidates:
+            module_path = _resolve_module_path(candidate, game)
+            if module_path is not None:
+                return module_path
+    return None
+
+
 def inspect_environment(selected_path: Path, game: GameDefinition = ZZMI) -> EnvironmentInspection:
     selected = selected_path.expanduser().resolve(strict=False)
     issues: list[str] = []
