@@ -137,7 +137,6 @@ Item {
                     id: card
                     required property int index
                     required property string displayName
-                    required property string groupPath
                     required property bool modEnabled
                     required property string previewUrl
                     required property string fullPath
@@ -193,34 +192,39 @@ Item {
                                 ToolTip.visible: hover.hovered
                                 ToolTip.text: card.fullPath
                             }
-                            Label {
-                                Layout.fillWidth: true
-                                text: card.groupPath
-                                color: App.Theme.muted
-                                font.pixelSize: 12
-                                elide: Text.ElideMiddle
-                            }
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 6
                                 C.ActionButton {
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    Layout.preferredWidth: 1
                                     text: qsTr("预览图")
-                                    symbol: "image"
                                     implicitHeight: 34
+                                    leftPadding: 8
+                                    rightPadding: 8
                                     onClicked: page.previewRequested(card.index)
                                 }
                                 C.ActionButton {
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    Layout.preferredWidth: 1
                                     text: qsTr("删除")
-                                    symbol: "trash"
                                     kind: "danger"
                                     implicitHeight: 34
+                                    leftPadding: 8
+                                    rightPadding: 8
                                     onClicked: page.deleteRequested(card.index, card.displayName)
                                 }
-                                Item { Layout.fillWidth: true }
                                 C.ActionButton {
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    Layout.preferredWidth: 1
                                     text: card.modEnabled ? qsTr("停用") : qsTr("启用")
                                     kind: card.modEnabled ? "secondary" : "primary"
                                     implicitHeight: 34
+                                    leftPadding: 8
+                                    rightPadding: 8
                                     onClicked: appController.toggleMod(card.index, page.singleSelection)
                                 }
                             }
