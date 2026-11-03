@@ -16,11 +16,13 @@ from PySide6.QtCore import (
     Slot,
 )
 
+from rlsm.application.importer import ModImportError, ModImporter
 from rlsm.application.library import LibrarySnapshot, ModLibrary
 from rlsm.application.toggle import ModToggleEngine, ToggleOperationError
 from rlsm.domain.game import ImporterDefinition
 from rlsm.domain.mod import ModEntry
 from rlsm.domain.runtime import GameBinding, LaunchProfile
+from rlsm.infrastructure.hyprland import HyprlandIntegration
 from rlsm.infrastructure.lutris import LutrisIntegration, LutrisSnapshot
 from rlsm.infrastructure.xxmi import (
     IMPORTER_DEFINITIONS,
@@ -97,6 +99,8 @@ class AppController(QObject):
         self._settings = QSettings()
         self._library = ModLibrary()
         self._toggle_engine = ModToggleEngine()
+        self._mod_importer = ModImporter()
+        self._hyprland = HyprlandIntegration()
         self._lutris = LutrisIntegration()
         self._mods_model = ModListModel(self)
         self._importers = IMPORTER_DEFINITIONS
@@ -105,6 +109,9 @@ class AppController(QObject):
         self._lutris_snapshot = LutrisSnapshot((), ())
         self._selected_profile: LaunchProfile | None = None
         self._last_message = ""
+        self._reload_after_toggle = bool(
+            self._settings.value("reloadAfterToggle", True, type=bool)
+        )
 
         saved_importer = str(self._settings.value("currentImporter", "zzmi") or "zzmi")
         self._current_game_index = next(
@@ -260,6 +267,14 @@ class AppController(QObject):
     def canLaunch(self) -> bool:
         return self._selected_profile is not None
 
+    @Property(bool, notify=stateChanged)
+    def hyprlandAvailable(self) -> bool:
+        return self._hyprland.available
+
+    @Property(bool, notify=stateChanged)
+    def reloadAfterToggle(self) -> bool:
+        return self._reload_after_toggle
+
     @Property(int, notify=stateChanged)
     def modCount(self) -> int:
         return len(self._snapshot.entries) if self._snapshot is not None else 0
@@ -352,6 +367,44 @@ class AppController(QObject):
             return
         self._set_message(f"已请求 Lutris 启动 {self._selected_profile.name}")
 
+    @Slot(bool)
+    def setReloadAfterToggle(self, enabled: bool) -> None:
+        self._reload_after_toggle = enabled
+        self._settings.setValue("reloadAfterToggle", enabled)
+        state = "启用" if enabled else "停用"
+        self._set_message(f"已经{state} Mod 切换后的自动 F10")
+
+    @Slot()
+    def reloadGame(self) -> None:
+        result = self._hyprland.reload_game(self._current_importer.game)
+        self._set_message(result.message)
+
+    @Slot(QUrl)
+    def importModUrl(self, value: QUrl) -> None:
+        self._import_mod_path(Path(value.toLocalFile()))
+
+    @Slot(QUrl)
+    def importModFolderUrl(self, value: QUrl) -> None:
+        self._import_mod_path(Path(value.toLocalFile()))
+
+    @Slot()
+    def autoCategorize(self) -> None:
+        if self._inspection is None or self._inspection.mods_path is None:
+            self._set_message("请先连接游戏模块")
+            return
+        if self._snapshot is None:
+            self._scan_library()
+        entries = self._snapshot.entries if self._snapshot is not None else ()
+        result = self._mod_importer.organize_existing(
+            self._inspection.mods_path,
+            tuple(entry.path for entry in entries),
+        )
+        self._scan_library()
+        message = f"自动分类完成：移动 {result.moved} 个，保留 {result.unchanged} 个"
+        if result.warnings:
+            message += "\n" + "\n".join(result.warnings)
+        self._set_message(message)
+
     @Slot()
     def refreshLibrary(self) -> None:
         if self._inspection is None:
@@ -381,7 +434,27 @@ class AppController(QObject):
 
         self._scan_library()
         action = "启用" if not target.is_enabled else "停用"
-        self._set_message(f"已{action} {target.display_name}，完成 {len(result.completed_steps)} 项目录修改")
+        message = f"已{action} {target.display_name}，完成 {len(result.completed_steps)} 项目录修改"
+        if result.changed and self._reload_after_toggle:
+            reload_result = self._hyprland.reload_game(self._current_importer.game)
+            message += f"\n{reload_result.message}"
+        self._set_message(message)
+
+    def _import_mod_path(self, source: Path) -> None:
+        if self._inspection is None or self._inspection.mods_path is None:
+            self._set_message("请先连接游戏模块")
+            return
+        try:
+            result = self._mod_importer.import_source(source, self._inspection.mods_path)
+        except ModImportError as error:
+            self._set_message(str(error))
+            return
+        self._scan_library()
+        categories = "、".join(sorted({item.category for item in result.imported}))
+        message = f"已经导入 {len(result.imported)} 个 Mod，分类：{categories}；新 Mod 默认停用"
+        if result.warnings:
+            message += "\n" + "\n".join(result.warnings)
+        self._set_message(message)
 
     def _load_current_importer(self) -> None:
         self._inspection = None

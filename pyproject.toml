@@ -29,3 +29,10 @@ rlsm = [
     "resources/**/*.svg",
 ]
 
+[tool.pyside6.deploy]
+title = "RLSM"
+input_file = "main.py"
+exec_directory = "dist"
+mode = "standalone"
+extra_args = "--quiet --noinclude-qt-translations=True --include-package=rlsm --include-data-dir=src/rlsm/qml=rlsm/qml"
+

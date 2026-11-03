@@ -36,6 +36,20 @@ ApplicationWindow {
         onAccepted: appController.setWinePrefixUrl(selectedFolder)
     }
 
+    FileDialog {
+        id: importFileDialog
+        title: qsTr("选择 Mod 压缩包")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTr("Mod 压缩包 (*.zip *.7z *.rar)"), qsTr("所有文件 (*)")]
+        onAccepted: appController.importModUrl(selectedFile)
+    }
+
+    FolderDialog {
+        id: importFolderDialog
+        title: qsTr("选择需要导入的 Mod 目录")
+        onAccepted: appController.importModFolderUrl(selectedFolder)
+    }
+
     Connections {
         target: appController
 
@@ -94,6 +108,11 @@ ApplicationWindow {
                 NavigationButton {
                     pageIndex: 1
                     text: qsTr("Mod 资料库")
+                }
+
+                NavigationButton {
+                    pageIndex: 2
+                    text: qsTr("导入与分类")
                 }
 
                 Item { Layout.fillHeight: true }
@@ -320,6 +339,33 @@ ApplicationWindow {
                         }
                     }
 
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 12
+
+                        CheckBox {
+                            text: qsTr("切换 Mod 后自动发送 F10")
+                            checked: appController.reloadAfterToggle
+                            palette.windowText: window.textColor
+                            onToggled: {
+                                if (checked !== appController.reloadAfterToggle)
+                                    appController.setReloadAfterToggle(checked)
+                            }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true
+                            text: appController.hyprlandAvailable ? qsTr("Hyprland 可以使用") : qsTr("当前会话无法控制 Hyprland")
+                            color: appController.hyprlandAvailable ? window.successColor : window.warningColor
+                        }
+
+                        Button {
+                            text: qsTr("向游戏发送 F10")
+                            enabled: appController.hyprlandAvailable
+                            onClicked: appController.reloadGame()
+                        }
+                    }
+
                     Label {
                         visible: appController.lastMessage.length > 0
                         Layout.fillWidth: true
@@ -363,6 +409,7 @@ ApplicationWindow {
                             id: singleSelect
                             text: qsTr("同组单选")
                             checked: true
+                            palette.windowText: window.textColor
                         }
 
                         Button {
@@ -486,6 +533,125 @@ ApplicationWindow {
                             font.pixelSize: 16
                         }
                     }
+                }
+            }
+
+            Rectangle {
+                color: window.color
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 30
+                    spacing: 18
+
+                    Label {
+                        text: appController.gameName + " · " + qsTr("导入与分类")
+                        color: window.textColor
+                        font.pixelSize: 28
+                        font.bold: true
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("导入器会识别一个或多个 Mod，自动放入角色、武器、界面或未分类目录。新导入的 Mod 默认停用。")
+                        color: window.mutedTextColor
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 190
+                        radius: 12
+                        color: window.raisedColor
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 12
+
+                            Label {
+                                text: qsTr("导入 Mod")
+                                color: window.textColor
+                                font.pixelSize: 20
+                                font.bold: true
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("支持普通目录、ZIP、7z 和 RAR。压缩包外层目录会自动跳过；同名 Mod 会保留两份。")
+                                color: window.mutedTextColor
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Item { Layout.fillHeight: true }
+
+                            RowLayout {
+                                Button {
+                                    text: qsTr("选择压缩包")
+                                    onClicked: importFileDialog.open()
+                                }
+
+                                Button {
+                                    text: qsTr("选择目录")
+                                    onClicked: importFolderDialog.open()
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 190
+                        radius: 12
+                        color: window.raisedColor
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 20
+                            spacing: 12
+
+                            Label {
+                                text: qsTr("自动分类现有 Mod")
+                                color: window.textColor
+                                font.pixelSize: 20
+                                font.bold: true
+                            }
+
+                            Label {
+                                Layout.fillWidth: true
+                                text: qsTr("检查根目录和“未分类”目录中的 Mod。识别依据包括 .rlsm.json、模型文件名称前缀和目录名称；已有分类不会移动。")
+                                color: window.mutedTextColor
+                                wrapMode: Text.WordWrap
+                            }
+
+                            Item { Layout.fillHeight: true }
+
+                            Button {
+                                text: qsTr("开始自动分类")
+                                onClicked: appController.autoCategorize()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        visible: appController.lastMessage.length > 0
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: importMessage.implicitHeight + 24
+                        radius: 8
+                        color: window.raisedColor
+
+                        Label {
+                            id: importMessage
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            text: appController.lastMessage
+                            color: window.mutedTextColor
+                            wrapMode: Text.Wrap
+                        }
+                    }
+
+                    Item { Layout.fillHeight: true }
                 }
             }
         }
