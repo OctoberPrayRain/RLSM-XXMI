@@ -20,6 +20,7 @@ Item {
         play: "M8 4l12 8-12 8z",
         check: "M5 12l4 4L19 6",
         close: "M6 6l12 12 M18 6L6 18",
+        trash: "M4 7h16 M9 7V4h6v3 M7 7l1 14h8l1-14 M10 11v6 M14 11v6",
         upload: "M12 16V3 M7 8l5-5 5 5 M4 15v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5",
         keyboard: "M3 5h18v14H3z M6 9h1 M11 9h1 M16 9h1 M6 12h1 M11 12h1 M16 12h1 M8 16h8",
         arrow: "M5 12h14 M13 6l6 6-6 6",

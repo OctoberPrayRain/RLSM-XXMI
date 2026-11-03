@@ -9,7 +9,7 @@ from rlsm.domain.mod import ModEntry, ModState, enabled_directory_name, is_disab
 
 
 _METADATA_NAMES = {".rlsm.json", ".jasm_modconfig.json"}
-_PREVIEW_PREFIXES = ("preview", "cover")
+_PREVIEW_PREFIXES = (".rlsm-preview", "preview", "cover", "thumbnail")
 _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 
 

@@ -15,9 +15,11 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
+from PySide6.QtGui import QImageReader
 
 from rlsm.application.importer import ModImportError, ModImporter
 from rlsm.application.library import LibrarySnapshot, ModLibrary
+from rlsm.application.mod_files import ModFileError, ModFileManager
 from rlsm.application.toggle import ModToggleEngine, ToggleOperationError
 from rlsm.domain.game import ImporterDefinition
 from rlsm.domain.mod import ModEntry
@@ -119,6 +121,7 @@ class AppController(QObject):
         super().__init__(parent)
         self._settings = QSettings()
         self._library = ModLibrary()
+        self._mod_files = ModFileManager()
         self._toggle_engine = ModToggleEngine()
         self._mod_importer = ModImporter()
         self._hyprland = HyprlandIntegration()
@@ -511,6 +514,45 @@ class AppController(QObject):
         action = "启用" if not target.is_enabled else "停用"
         message = f"已{action} {target.display_name}"
         if result.changed and self._reload_after_toggle:
+            reload_result = self._hyprland.reload_game(self._current_importer.game)
+            message += f"\n{reload_result.message}"
+        self._set_message(message)
+
+    @Slot(int, QUrl)
+    def setModPreview(self, row: int, value: QUrl) -> None:
+        target = self._mods_model.entry(row)
+        if target is None:
+            self._set_message("找不到需要设置预览图的 Mod")
+            return
+        source = Path(value.toLocalFile())
+        if not value.isLocalFile() or not source.is_file() or not QImageReader(str(source)).canRead():
+            self._set_message("请选择可以读取的图片")
+            return
+        try:
+            self._mod_files.set_preview(target, source)
+        except ModFileError as error:
+            self._set_message(str(error))
+            return
+        self._scan_library()
+        self._set_message(f"已更新 {target.display_name} 的预览图")
+
+    @Slot(int)
+    def deleteMod(self, row: int) -> None:
+        target = self._mods_model.entry(row)
+        if target is None:
+            self._set_message("找不到需要删除的 Mod")
+            return
+        if self._inspection is None or self._inspection.mods_path is None:
+            self._set_message("未连接 Mods 目录")
+            return
+        try:
+            self._mod_files.move_to_trash(target, self._inspection.mods_path)
+        except ModFileError as error:
+            self._set_message(str(error))
+            return
+        self._scan_library()
+        message = f"已将 {target.display_name} 移入回收站"
+        if target.is_enabled and self._reload_after_toggle:
             reload_result = self._hyprland.reload_game(self._current_importer.game)
             message += f"\n{reload_result.message}"
         self._set_message(message)

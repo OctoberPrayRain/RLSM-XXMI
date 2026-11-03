@@ -29,6 +29,9 @@ ApplicationWindow {
     property int currentPage: 0
     property string lastShownMessage: ""
     property bool initialized: false
+    property int pendingPreviewRow: -1
+    property int pendingDeleteRow: -1
+    property string pendingDeleteName: ""
     Component.onCompleted: { lastShownMessage = appController.lastMessage; initialized = true }
     Binding { target: App.Theme; property: "accent"; value: appearance.accentColor }
     Binding { target: App.Theme; property: "backdropSource"; value: backdrop }
@@ -74,6 +77,16 @@ ApplicationWindow {
         nameFilters: [qsTr("图片 (*.png *.jpg *.jpeg *.webp *.bmp)"), qsTr("所有文件 (*)")]
         onAccepted: appearance.setBackground(selectedFile)
     }
+    FileDialog {
+        id: modPreviewDialog
+        title: qsTr("选择 Mod 预览图")
+        nameFilters: [qsTr("图片 (*.png *.jpg *.jpeg *.webp *.bmp *.gif)"), qsTr("所有文件 (*)")]
+        onAccepted: {
+            appController.setModPreview(window.pendingPreviewRow, selectedFile)
+            window.pendingPreviewRow = -1
+        }
+        onRejected: window.pendingPreviewRow = -1
+    }
 
     Connections {
         target: appController
@@ -114,10 +127,12 @@ ApplicationWindow {
     RowLayout {
         anchors.fill: parent
         spacing: 0
-        Rectangle {
+        C.Panel {
             Layout.preferredWidth: 210
             Layout.fillHeight: true
-            color: "#e6101a26"
+            radius: 0
+            glassColor: "#800b1521"
+            borderWidth: 0
             Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: "#34334252" }
             ColumnLayout {
                 anchors.fill: parent
@@ -206,6 +221,15 @@ ApplicationWindow {
                     onImportRequested: importDialog.open()
                     onEnvironmentRequested: window.currentPage = 1
                     onClassificationRequested: classifyDialog.open()
+                    onPreviewRequested: function(row) {
+                        window.pendingPreviewRow = row
+                        modPreviewDialog.open()
+                    }
+                    onDeleteRequested: function(row, displayName) {
+                        window.pendingDeleteRow = row
+                        window.pendingDeleteName = displayName
+                        deleteDialog.open()
+                    }
                 }
                 Pages.EnvironmentPage {
                     objectName: "environmentPage"
@@ -264,6 +288,48 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 C.ActionButton { text: qsTr("取消"); onClicked: classifyDialog.close() }
                 C.ActionButton { text: qsTr("整理"); kind: "primary"; onClicked: { classifyDialog.close(); appController.autoCategorize() } }
+            }
+        }
+    }
+
+    Dialog {
+        id: deleteDialog
+        anchors.centerIn: parent
+        width: 480
+        modal: true
+        padding: 26
+        background: C.Panel { glassColor: "#b6172330"; borderColor: App.Theme.danger }
+        onClosed: {
+            window.pendingDeleteRow = -1
+            window.pendingDeleteName = ""
+        }
+        contentItem: ColumnLayout {
+            spacing: 20
+            Label {
+                text: qsTr("删除 Mod")
+                color: App.Theme.text
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("将“%1”移入系统回收站？").arg(window.pendingDeleteName)
+                color: App.Theme.muted
+                wrapMode: Text.WordWrap
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                C.ActionButton { text: qsTr("取消"); onClicked: deleteDialog.close() }
+                C.ActionButton {
+                    text: qsTr("移入回收站")
+                    symbol: "trash"
+                    kind: "danger"
+                    onClicked: {
+                        const row = window.pendingDeleteRow
+                        deleteDialog.close()
+                        appController.deleteMod(row)
+                    }
+                }
             }
         }
     }

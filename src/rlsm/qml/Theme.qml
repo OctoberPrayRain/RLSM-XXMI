@@ -12,6 +12,10 @@ QtObject {
     readonly property color accentSoft: Qt.rgba(accent.r, accent.g, accent.b, 0.16)
     readonly property color accentBorder: Qt.rgba(accent.r, accent.g, accent.b, 0.52)
     readonly property color warning: "#efc58d"
+    readonly property color danger: "#ed8585"
+    readonly property color dangerHover: "#f09b9b"
+    readonly property color dangerPressed: "#d96f6f"
+    readonly property color dangerInk: "#251315"
     readonly property color border: "#46ffffff"
     readonly property color surface: "#82101a26"
     readonly property color field: "#70101a26"

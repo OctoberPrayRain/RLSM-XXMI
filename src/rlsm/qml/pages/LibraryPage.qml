@@ -9,6 +9,8 @@ Item {
     signal importRequested()
     signal environmentRequested()
     signal classificationRequested()
+    signal previewRequested(int row)
+    signal deleteRequested(int row, string displayName)
     property bool singleSelection: true
 
     ColumnLayout {
@@ -129,7 +131,7 @@ Item {
                 visible: appController.visibleModCount > 0
                 model: appController.modsModel
                 cellWidth: width / Math.max(1, Math.floor(width / 240))
-                cellHeight: 300
+                cellHeight: 330
                 ScrollBar.vertical: ScrollBar { }
                 delegate: Item {
                     id: card
@@ -163,6 +165,7 @@ Item {
                                     source: card.previewUrl
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
+                                    cache: false
                                 }
                                 C.Icon {
                                     visible: card.previewUrl.length === 0
@@ -190,9 +193,30 @@ Item {
                                 ToolTip.visible: hover.hovered
                                 ToolTip.text: card.fullPath
                             }
+                            Label {
+                                Layout.fillWidth: true
+                                text: card.groupPath
+                                color: App.Theme.muted
+                                font.pixelSize: 12
+                                elide: Text.ElideMiddle
+                            }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Label { Layout.fillWidth: true; text: card.groupPath; color: App.Theme.muted; font.pixelSize: 12; elide: Text.ElideMiddle }
+                                spacing: 6
+                                C.ActionButton {
+                                    text: qsTr("预览图")
+                                    symbol: "image"
+                                    implicitHeight: 34
+                                    onClicked: page.previewRequested(card.index)
+                                }
+                                C.ActionButton {
+                                    text: qsTr("删除")
+                                    symbol: "trash"
+                                    kind: "danger"
+                                    implicitHeight: 34
+                                    onClicked: page.deleteRequested(card.index, card.displayName)
+                                }
+                                Item { Layout.fillWidth: true }
                                 C.ActionButton {
                                     text: card.modEnabled ? qsTr("停用") : qsTr("启用")
                                     kind: card.modEnabled ? "secondary" : "primary"

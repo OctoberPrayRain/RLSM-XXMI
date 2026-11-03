@@ -6,6 +6,7 @@
     "src/rlsm/application/__init__.py",
     "src/rlsm/application/importer.py",
     "src/rlsm/application/library.py",
+    "src/rlsm/application/mod_files.py",
     "src/rlsm/application/toggle.py",
     "src/rlsm/domain/__init__.py",
     "src/rlsm/domain/game.py",
