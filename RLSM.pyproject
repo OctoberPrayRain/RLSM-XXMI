@@ -1,0 +1,24 @@
+{
+  "files": [
+    "main.py",
+    "src/rlsm/__init__.py",
+    "src/rlsm/__main__.py",
+    "src/rlsm/application/__init__.py",
+    "src/rlsm/application/importer.py",
+    "src/rlsm/application/library.py",
+    "src/rlsm/application/toggle.py",
+    "src/rlsm/domain/__init__.py",
+    "src/rlsm/domain/game.py",
+    "src/rlsm/domain/mod.py",
+    "src/rlsm/domain/runtime.py",
+    "src/rlsm/infrastructure/__init__.py",
+    "src/rlsm/infrastructure/hyprland.py",
+    "src/rlsm/infrastructure/lutris.py",
+    "src/rlsm/infrastructure/xxmi.py",
+    "src/rlsm/main.py",
+    "src/rlsm/presentation/__init__.py",
+    "src/rlsm/presentation/app_controller.py",
+    "src/rlsm/qml/Main.qml",
+    "src/rlsm/qml/qmldir"
+  ]
+}
