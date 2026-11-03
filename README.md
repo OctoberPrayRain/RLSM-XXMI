@@ -1,5 +1,8 @@
 # RLSM
 
+<h1 aligin = center><img width="1986" height="1214" alt="image" src="https://github.com/user-attachments/assets/01026822-cc9c-4064-ae61-4ba698597776" /></h1>
+
+
 RLSM（Rainy Linux Skin Manager）是面向 Linux 的 XXMI Mod 管理器。它读取 XXMI 模块的 `Mods` 目录，在原生 Linux 界面中完成 Mod 导入、分类、启用、停用、预览图设置和删除，并可以读取 Lutris 的游戏启动项与 Wine 环境。
 
 当前版本为 `0.1.0`。绝区零、ZZMI、Lutris、Wine 和 Hyprland 的主要流程已经在 Arch Linux 环境中实际使用。其他 XXMI 模块已经加入路径、进程和启动项定义，仍需在对应游戏环境中继续验证。
