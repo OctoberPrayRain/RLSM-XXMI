@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -20,6 +21,37 @@ class ModFileError(RuntimeError):
 class ModFileManager:
     def __init__(self, trash_command: str | None = None) -> None:
         self._trash_command = trash_command or shutil.which("gio")
+
+    def set_display_name(self, entry: ModEntry, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise ModFileError("Mod 名称不能为空")
+        mod_path = entry.path.resolve(strict=False)
+        if not mod_path.is_dir():
+            raise ModFileError(f"Mod 目录不存在：{mod_path}")
+
+        metadata_path = mod_path / ".rlsm.json"
+        metadata: dict[str, object] = {}
+        try:
+            if metadata_path.exists():
+                metadata = json.loads(metadata_path.read_text(encoding="utf-8-sig"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise ModFileError(f"读取 Mod 信息失败：{error}") from error
+        if not isinstance(metadata, dict):
+            raise ModFileError("Mod 信息格式有误，无法保存名称")
+
+        metadata["displayName"] = name
+        temporary = mod_path / f".rlsm-{uuid.uuid4().hex}.json"
+        try:
+            temporary.write_text(
+                json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(temporary, metadata_path)
+        except OSError as error:
+            temporary.unlink(missing_ok=True)
+            raise ModFileError(f"保存 Mod 名称失败：{error}") from error
+        return name
 
     def set_preview(self, entry: ModEntry, source: Path) -> Path:
         mod_path = entry.path.resolve(strict=False)

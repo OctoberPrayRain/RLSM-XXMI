@@ -654,6 +654,23 @@ class AppController(QObject):
             message += f"\n{reload_result.message}"
         self._set_message(message)
 
+    @Slot(int, str, result=bool)
+    def renameMod(self, row: int, value: str) -> bool:
+        target = self._mods_model.entry(row)
+        if target is None:
+            self._set_message("找不到需要重命名的 Mod")
+            return False
+        if value.strip() == target.display_name:
+            return True
+        try:
+            name = self._mod_files.set_display_name(target, value)
+        except ModFileError as error:
+            self._set_message(str(error))
+            return False
+        self._scan_library()
+        self._set_message(f"已修改名称：{name}")
+        return True
+
     @Slot(int, QUrl)
     def setModPreview(self, row: int, value: QUrl) -> None:
         target = self._mods_model.entry(row)

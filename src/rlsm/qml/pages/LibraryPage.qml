@@ -11,6 +11,7 @@ Item {
     signal classificationRequested()
     signal previewRequested(int row)
     signal deleteRequested(int row, string displayName)
+    signal renameRequested(int row, string displayName)
     signal createFolderRequested()
     signal renameFolderRequested(string folderName)
     signal deleteFolderRequested(string folderName)
@@ -306,6 +307,18 @@ Item {
                                     elide: Text.ElideRight
                                     ToolTip.visible: hover.hovered
                                     ToolTip.text: card.fullPath
+                                }
+                                C.ActionButton {
+                                    symbol: "edit"
+                                    kind: "quiet"
+                                    implicitWidth: 32
+                                    implicitHeight: 30
+                                    leftPadding: 7
+                                    rightPadding: 7
+                                    onClicked: page.renameRequested(card.index, card.displayName)
+                                    Accessible.name: qsTr("修改名称")
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("修改名称")
                                 }
                                 C.ActionButton {
                                     symbol: "folder"

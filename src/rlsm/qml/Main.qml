@@ -30,6 +30,7 @@ ApplicationWindow {
     property string lastShownMessage: ""
     property bool initialized: false
     property int pendingPreviewRow: -1
+    property int pendingRenameRow: -1
     property int pendingDeleteRow: -1
     property string pendingDeleteName: ""
     property int pendingMoveRow: -1
@@ -233,6 +234,11 @@ ApplicationWindow {
                         window.pendingDeleteRow = row
                         window.pendingDeleteName = displayName
                         deleteDialog.open()
+                    }
+                    onRenameRequested: function(row, displayName) {
+                        window.pendingRenameRow = row
+                        renameModField.text = displayName
+                        renameModDialog.open()
                     }
                     onCreateFolderRequested: {
                         createFolderField.text = ""
@@ -489,6 +495,53 @@ ApplicationWindow {
                         moveFolderDialog.close()
                         appController.moveModToLibraryFolder(row, folder)
                     }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: renameModDialog
+        objectName: "renameModDialog"
+        anchors.centerIn: parent
+        width: 460
+        modal: true
+        padding: 26
+        background: C.Panel { glassColor: "#b6172330" }
+        function saveName() {
+            if (renameModField.inputMethodComposing || renameModField.text.trim().length === 0)
+                return
+            if (appController.renameMod(window.pendingRenameRow, renameModField.text))
+                close()
+        }
+        onOpened: {
+            renameModField.forceActiveFocus()
+            renameModField.selectAll()
+        }
+        onClosed: window.pendingRenameRow = -1
+        contentItem: ColumnLayout {
+            spacing: 18
+            Label {
+                text: qsTr("修改 Mod 名称")
+                color: App.Theme.text
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
+            C.Field {
+                id: renameModField
+                objectName: "renameModField"
+                Layout.fillWidth: true
+                placeholderText: qsTr("Mod 名称")
+                onAccepted: renameModDialog.saveName()
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                C.ActionButton { text: qsTr("取消"); onClicked: renameModDialog.close() }
+                C.ActionButton {
+                    text: qsTr("保存")
+                    kind: "primary"
+                    enabled: renameModField.text.trim().length > 0
+                    onClicked: renameModDialog.saveName()
                 }
             }
         }

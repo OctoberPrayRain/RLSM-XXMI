@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -60,7 +61,7 @@ class ModLibrary:
                     relative_path=relative_path,
                     group_path=relative_path.parent,
                     directory_name=directory_name,
-                    display_name=enabled_directory_name(directory_name),
+                    display_name=self._display_name(current_path, directory_name, warnings),
                     state=state,
                     preview_path=preview_path,
                 )
@@ -68,6 +69,23 @@ class ModLibrary:
 
         entries.sort(key=lambda entry: (entry.group_path.as_posix().casefold(), entry.display_name.casefold()))
         return LibrarySnapshot(root, tuple(entries), tuple(warnings), datetime.now(UTC))
+
+    @staticmethod
+    def _display_name(directory: Path, directory_name: str, warnings: list[str]) -> str:
+        fallback = enabled_directory_name(directory_name)
+        metadata_path = directory / ".rlsm.json"
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8-sig"))
+        except FileNotFoundError:
+            return fallback
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            warnings.append(f"读取 Mod 名称失败：{metadata_path}（{error}）")
+            return fallback
+        if isinstance(metadata, dict):
+            name = metadata.get("displayName")
+            if isinstance(name, str) and name.strip():
+                return name.strip()
+        return fallback
 
     @staticmethod
     def _looks_like_mod_root(file_names: list[str]) -> bool:
